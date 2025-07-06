@@ -4,9 +4,8 @@ import importlib
 import os
 
 # --- Model Imports ---
-# Default model (covers v1 and v2, which were in-place upgrades)
-from architecture.fluid_network import FluidNetwork
-# V3 is a separate architecture
+from architecture.fluid_network_v1 import FluidNetworkV1
+from architecture.fluid_network_v2 import FluidNetwork as FluidNetworkV2 # Alias for clarity
 from architecture.fluid_network_v3 import FluidNetworkV3
 
 # A dictionary to map pillar numbers to their folder names.
@@ -27,13 +26,15 @@ PILLAR_MAP = {
 
 def get_model(version_str):
     """Dynamically selects the model based on version."""
+    if version_str.lower() == 'v1':
+        print("--- Loading Model Architecture: v1 (Fixed Graph ODE) ---")
+        return FluidNetworkV1()
     if version_str.lower() == 'v3':
         print("--- Loading Model Architecture: v3 (Affinity-Biased Attention ODE) ---")
         return FluidNetworkV3()
-    else:
-        # Default to the v1/v2 architecture file
-        print(f"--- Loading Model Architecture: {version_str} (Attention ODE) ---")
-        return FluidNetwork()
+    # Default to v2
+    print(f"--- Loading Model Architecture: v2 (Fluid Attention ODE) ---")
+    return FluidNetworkV2()
 
 def main():
     """
@@ -49,7 +50,7 @@ def main():
     parser.add_argument(
         '--model_version',
         type=str,
-        default='v2', # Default to the latest model before v3
+        default='v3', # Default to the latest model
         help="Specify the model version to run ('v1', 'v2', 'v3')."
     )
     args = parser.parse_args()
@@ -84,6 +85,8 @@ def main():
             print(f"  - Directory expected: pillars/{PILLAR_MAP.get(pillar_id, 'N/A')}")
             print(f"  - Function expected: {run_func_name}")
             print(f"Error details: {e}")
+        except Exception as e:
+            print(f"!!!!! An error occurred while running Pillar {pillar_id}: {e} !!!!!")
 
 if __name__ == "__main__":
     main() 

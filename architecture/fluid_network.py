@@ -3,6 +3,7 @@ import torch.nn as nn
 import timm
 from transformers import AutoModel, AutoTokenizer
 from .nightclub_ode import NightclubODE
+import os
 
 # Define constants for our Nightclub analogy
 NUM_ROOMS = 4  # MainFloor, VIP_Lounge, QuietBar, OutdoorPatio
@@ -112,3 +113,5 @@ class FluidNetwork(nn.Module):
             output = self.forward(data, pillar_id)
         
         return output 
+
+os.rename('architecture/fluid_network.py', 'architecture/fluid_network_v2.py') 
