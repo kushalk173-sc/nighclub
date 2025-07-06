@@ -113,5 +113,3 @@ class FluidNetwork(nn.Module):
             output = self.forward(data, pillar_id)
         
         return output 
-
-os.rename('architecture/fluid_network.py', 'architecture/fluid_network_v2.py') 
