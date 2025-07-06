@@ -1,72 +1,48 @@
-import time
 from .data_loader import load_data
 from .evaluate import evaluate
+import torch
 
-def run_test(test_id, description, model):
+def run_all_tests(model):
     """
-    A helper function to run a single test for Pillar 5.
+    Runs all 10 tests for a generic pillar and returns the results.
     """
-    print(f"--- Running Pillar 5 Test #{test_id}: {description} ---")
-
-    # 1. Load data
-    print("Loading data...")
-    qa_contexts, labels = load_data(test_id)
-
-    # 2. Get model prediction
-    print("Getting model prediction...")
-    if model:
-        prediction = model.predict(qa_contexts, pillar_id=5)
-    else:
-        prediction = None
-        time.sleep(0.2)
-
-    # 3. Evaluate
-    print("Evaluating...")
-    if prediction is not None:
-        # The metric is Exact-Match, but we use accuracy as a proxy
-        score = evaluate(prediction, labels, metric="accuracy")
-    else:
-        score = 0.0
-
-    print(f"  - Score: {score:.2%}")
-    print(f"--- Test #{test_id} Complete ---\n")
-    return score
-
-def run_pillar_5_tests(model=None):
-    """
-    Runs all tests for Pillar 5: Multi-Hop Reasoning.
-    """
-    print(f"{'='*50}")
+    pillar_id = 5
+    pillar_name = "Multi-Hop Reasoning"
+    metric_name = "accuracy"
+    
+    print("==================================================")
     print(f"  Running Pillar 5: Multi-Hop Reasoning")
-    print(f"{'='*50}\n")
-
-    test_definitions = {
-        '41': '2-hop factual',
-        '42': '3-hop factual',
-        '43': '4-hop factual',
-        '44': '2-hop causal chain',
-        '45': '3-hop causal chain',
-        '46': '4-hop temporal reasoning',
-        '47': '5-hop compositional reasoning',
-        '48': '6-hop comparison',
-        '49': 'Bridge entity reasoning',
-        '50': '6-hop causal chain'
-    }
-
+    print("==================================================")
+    
     results = {}
-    for test_id, description in test_definitions.items():
-        results[test_id] = run_test(test_id, description, model)
+    for i in range(10):
+        test_id = (pillar_id - 1) * 10 + 1 + i
+        print(f"--- Running Pillar {pillar_id} Test #{test_id}: {pillar_name} Test #{i+1} ---")
+        data, _ = load_data(test_id)
+        device = next(model.parameters()).device
+        data = data.to(device)
 
-    if not results:
-        print("No tests defined for this pillar.")
-        return {}
-
-    avg_score = sum(results.values()) / len(results)
-    print("---------------------------------------------")
-    print(f"Pillar 5 Average Score: {avg_score:.2%}")
-    print("---------------------------------------------")
-
+        prediction = model.predict(data, pillar_id=pillar_id)
+        score = evaluate(prediction)
+        results[test_id] = score
+        
+        # Determine format based on metric
+        if metric_name == "mae":
+            print(f"  - Score ({metric_name.upper()}): {score:.4f}")
+        else:
+            print(f"  - Score ({metric_name.upper()}): {score:.2f}%")
+            
+        print(f"--- Test #{test_id} Complete ---")
+        
+    valid_scores = [s for s in results.values() if s is not None]
+    avg_score = sum(valid_scores) / len(valid_scores) if valid_scores else 0
+    results[f'average_{metric_name}'] = avg_score
+    
+    print("-" * 45)
+    if metric_name == "mae":
+        print(f"Pillar {pillar_id} Average Score ({metric_name.upper()}): {avg_score:.4f}")
+    else:
+        print(f"Pillar {pillar_id} Average Score ({metric_name.upper()}): {avg_score:.2f}%")
+    print("-" * 45)
+    
     return results
-
-if __name__ == '__main__':
-    run_pillar_5_tests()

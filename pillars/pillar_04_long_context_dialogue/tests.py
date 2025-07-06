@@ -1,73 +1,48 @@
-import time
 from .data_loader import load_data
 from .evaluate import evaluate
+import torch
 
-def run_test(test_id, description, model):
+def run_all_tests(model):
     """
-    A helper function to run a single test for Pillar 4.
+    Runs all 10 tests for a generic pillar and returns the results.
     """
-    print(f"--- Running Pillar 4 Test #{test_id}: {description} ---")
-
-    # 1. Load data
-    print("Loading data...")
-    # This now returns a list of strings and corresponding labels
-    dialogues, labels = load_data(test_id)
-
-    # 2. Get model prediction
-    print("Getting model prediction...")
-    if model:
-        prediction = model.predict(dialogues, pillar_id=4)
-    else:
-        prediction = None
-        time.sleep(0.2)
-
-    # 3. Evaluate
-    print("Evaluating...")
-    if prediction is not None:
-        # The metric is Coherence F1 for this pillar
-        score = evaluate(prediction, labels, metric="f1")
-    else:
-        score = 0.0
-
-    print(f"  - Score: {score:.2f}")
-    print(f"--- Test #{test_id} Complete ---\n")
-    return score
-
-def run_pillar_4_tests(model=None):
-    """
-    Runs all tests for Pillar 4: Long-Context Dialogue Coherence.
-    """
-    print(f"{'='*50}")
+    pillar_id = 4
+    pillar_name = "Long-Context Dialogue Coherence"
+    metric_name = "f1"
+    
+    print("==================================================")
     print(f"  Running Pillar 4: Long-Context Dialogue Coherence")
-    print(f"{'='*50}\n")
-
-    test_definitions = {
-        '31': '5 characters, 3 locations',
-        '32': '10 characters, complex plot',
-        '33': 'Long-term dependency check (10k tokens)',
-        '34': 'Short-term dependency check',
-        '35': 'Contradiction detection',
-        '36': 'Multi-session coherence',
-        '37': 'Emotional arc consistency',
-        '38': 'Style consistency (formal vs. informal)',
-        '39': '20 characters, flashbacks',
-        '40': 'Ground-truth entity state tracking'
-    }
-
+    print("==================================================")
+    
     results = {}
-    for test_id, description in test_definitions.items():
-        results[test_id] = run_test(test_id, description, model)
+    for i in range(10):
+        test_id = (pillar_id - 1) * 10 + 1 + i
+        print(f"--- Running Pillar {pillar_id} Test #{test_id}: {pillar_name} Test #{i+1} ---")
+        data, _ = load_data(test_id)
+        device = next(model.parameters()).device
+        data = data.to(device)
 
-    if not results:
-        print("No tests defined for this pillar.")
-        return {}
-
-    avg_score = sum(results.values()) / len(results)
-    print("---------------------------------------------")
-    print(f"Pillar 4 Average Score: {avg_score:.2f}")
-    print("---------------------------------------------")
-
+        prediction = model.predict(data, pillar_id=pillar_id)
+        score = evaluate(prediction)
+        results[test_id] = score
+        
+        # Determine format based on metric
+        if metric_name == "mae":
+            print(f"  - Score ({metric_name.upper()}): {score:.4f}")
+        else:
+            print(f"  - Score ({metric_name.upper()}): {score:.2f}%")
+            
+        print(f"--- Test #{test_id} Complete ---")
+        
+    valid_scores = [s for s in results.values() if s is not None]
+    avg_score = sum(valid_scores) / len(valid_scores) if valid_scores else 0
+    results[f'average_{metric_name}'] = avg_score
+    
+    print("-" * 45)
+    if metric_name == "mae":
+        print(f"Pillar {pillar_id} Average Score ({metric_name.upper()}): {avg_score:.4f}")
+    else:
+        print(f"Pillar {pillar_id} Average Score ({metric_name.upper()}): {avg_score:.2f}%")
+    print("-" * 45)
+    
     return results
-
-if __name__ == '__main__':
-    run_pillar_4_tests()

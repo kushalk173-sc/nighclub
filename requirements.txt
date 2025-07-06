@@ -6,4 +6,7 @@ numpy
 scikit-learn
 jiwer
 torchdiffeq
-torch_geometric 
+torch_geometric
+pandas
+perceiver-pytorch
+rwkv 

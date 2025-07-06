@@ -1,46 +1,48 @@
-
-import time
 from .data_loader import load_data
 from .evaluate import evaluate
+import torch
 
-def run_test(test_id, description, model):
-    print(f"--- Running Pillar 11 Test #{test_id}: {description} ---")
-
-    print("Loading data...")
-    data, labels = load_data(test_id)
-
-    print("Getting model prediction...")
-    if model:
-        prediction = model.predict(data, pillar_id=11)
-    else:
-        prediction = None
-        time.sleep(0.2)
-
-    print("Evaluating...")
-    if prediction is not None:
-        score = evaluate(prediction, labels, metric="mae")
-    else:
-        score = 0.0
-
-    print(f"  - Score (MAE): {score:.4f}")
-    print(f"--- Test #{test_id} Complete ---\n")
-    return score
-
-def run_pillar_11_tests(model=None):
-    print(f"{'='*50}")
+def run_all_tests(model):
+    """
+    Runs all 10 tests for a generic pillar and returns the results.
+    """
+    pillar_id = 11
+    pillar_name = "OOD Geometry Fit (Synthetic manifolds)"
+    metric_name = "mae"
+    
+    print("==================================================")
     print(f"  Running Pillar 11: OOD Geometry Fit (Synthetic manifolds)")
-    print(f"{'='*50}\n")
-
-    test_definitions = {'101': 'OOD Geometry Test #1', '102': 'OOD Geometry Test #2', '103': 'OOD Geometry Test #3', '104': 'OOD Geometry Test #4', '105': 'OOD Geometry Test #5', '106': 'OOD Geometry Test #6', '107': 'OOD Geometry Test #7', '108': 'OOD Geometry Test #8', '109': 'OOD Geometry Test #9', '110': 'OOD Geometry Test #10'}
+    print("==================================================")
+    
     results = {}
-    for test_id, description in test_definitions.items():
-        results[test_id] = run_test(test_id, description, model)
+    for i in range(10):
+        test_id = (pillar_id - 1) * 10 + 1 + i
+        print(f"--- Running Pillar {pillar_id} Test #{test_id}: {pillar_name} Test #{i+1} ---")
+        data, _ = load_data(test_id)
+        device = next(model.parameters()).device
+        data = data.to(device)
 
-    avg_score = sum(results.values()) / len(results) if results else 0
-    print("---------------------------------------------")
-    print(f"Pillar 11 Average Score (MAE): {avg_score:.4f}")
-    print("---------------------------------------------")
+        prediction = model.predict(data, pillar_id=pillar_id)
+        score = evaluate(prediction)
+        results[test_id] = score
+        
+        # Determine format based on metric
+        if metric_name == "mae":
+            print(f"  - Score ({metric_name.upper()}): {score:.4f}")
+        else:
+            print(f"  - Score ({metric_name.upper()}): {score:.2f}%")
+            
+        print(f"--- Test #{test_id} Complete ---")
+        
+    valid_scores = [s for s in results.values() if s is not None]
+    avg_score = sum(valid_scores) / len(valid_scores) if valid_scores else 0
+    results[f'average_{metric_name}'] = avg_score
+    
+    print("-" * 45)
+    if metric_name == "mae":
+        print(f"Pillar {pillar_id} Average Score ({metric_name.upper()}): {avg_score:.4f}")
+    else:
+        print(f"Pillar {pillar_id} Average Score ({metric_name.upper()}): {avg_score:.2f}%")
+    print("-" * 45)
+    
     return results
-
-if __name__ == '__main__':
-    run_pillar_11_tests()

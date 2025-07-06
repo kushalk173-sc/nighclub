@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 #
 # A simple smoke test to ensure the core repository logic can execute
-# without crashing. It runs the v1 model against the first pillar.
+# without crashing. It runs a specified model against the first pillar.
 #
 
 echo "--- Starting repository smoke test... ---"
 
-# Run the main script via the bootstrap to ensure paths are correct.
-# We use the --smoke flag which tells main.py to run a minimal test.
-python nighclub_bootstrap.py main.py --model_version v1 --smoke
+# Run the main script via the bootstrap, passing along all arguments
+# provided to this script (e.g., --model_version)
+# The --smoke flag is always added.
+python nighclub_bootstrap.py main.py --smoke "$@"
 
 # Check the exit code of the last command.
 EXIT_CODE=$?

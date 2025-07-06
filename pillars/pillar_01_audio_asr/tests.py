@@ -60,25 +60,34 @@ def run_test(model, test_id):
     print(f"--- Test #{test_id} Complete ---")
     return {"wer": score}
 
-def run_pillar_1_tests(model=None):
+def run_all_tests(model):
     """
-    Runs all 10 tests for Pillar 1: Instant Domain Shift (Audio-ASR).
+    Runs all 10 tests for the Audio-ASR pillar and returns the results.
     """
-    print("=============================================")
+    print("==================================================")
     print("  Running Pillar 1: Instant Domain Shift (Audio-ASR) ")
-    print("=============================================\n")
-
+    print("==================================================")
+  
     results = {}
     for test_id in TESTS:
-        results[test_id] = run_test(model, test_id)
+        test_result = run_test(model, test_id)
+        # Store the raw score from the result dictionary
+        if 'wer' in test_result:
+            results[test_id] = test_result['wer']
+        else:
+            results[test_id] = None # Indicate error
 
-    avg_wer = sum(results.values()) / len(results)
-    print("---------------------------------------------")
-    print(f"Pillar 1 Average WER: {avg_wer:.2%}")
-    print("---------------------------------------------")
+    # Calculate average and add it to the results dictionary
+    valid_scores = [s for s in results.values() if s is not None]
+    avg_wer = sum(valid_scores) / len(valid_scores) if valid_scores else 0
+    results['average_wer'] = avg_wer
+    
+    print("-" * 45)
+    print(f"Pillar 1 Average WER: {avg_wer:.2f}%")
+    print("-" * 45)
 
     return results
 
 if __name__ == '__main__':
     # This allows running the tests directly for stand-alone testing
-    run_pillar_1_tests() 
+    run_all_tests() 
