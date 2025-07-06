@@ -1,0 +1,9 @@
+torch
+torchvision
+transformers
+timm
+numpy
+scikit-learn
+jiwer
+torchdiffeq
+torch_geometric 
