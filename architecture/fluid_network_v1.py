@@ -3,6 +3,7 @@ import torch.nn as nn
 import timm
 from transformers import AutoModel, AutoTokenizer
 from .v1_graph_ode import V1_GraphODE
+from utils.dev import get_device
 
 # This file restores the v1 architecture top-level model.
 
@@ -15,13 +16,14 @@ class FluidNetworkV1(nn.Module):
     """
     def __init__(self, num_classes=1000):
         super().__init__()
+        device = get_device()
         print("Initializing FluidNetwork model (v1 - Fixed Graph ODE)...")
 
-        # --- Encoders ---
-        self.vision_encoder = timm.create_model('vit_tiny_patch16_224', pretrained=True, num_classes=0)
-        self.audio_encoder = AutoModel.from_pretrained("facebook/wav2vec2-base-960h")
+        # --- Encoders (moved to device) ---
+        self.vision_encoder = timm.create_model('vit_tiny_patch16_224', pretrained=True, num_classes=0).to(device)
+        self.audio_encoder = AutoModel.from_pretrained("facebook/wav2vec2-base-960h").to(device)
         self.text_encoder_name = "distilbert-base-uncased"
-        self.text_encoder = AutoModel.from_pretrained(self.text_encoder_name)
+        self.text_encoder = AutoModel.from_pretrained(self.text_encoder_name).to(device)
         self.tokenizer = AutoTokenizer.from_pretrained(self.text_encoder_name)
 
         # --- Projectors ---
@@ -55,7 +57,8 @@ class FluidNetworkV1(nn.Module):
             initial_vibe_flat = self.text_projector(encoded_state)
         else:
             if not hasattr(self, 'generic_projector'):
-                self.generic_projector = nn.Linear(10, NUM_AGENTS * VIBE_DIM).to(data.device)
+                device = data.device # Ensure projector is on the same device as data
+                self.generic_projector = nn.Linear(10, NUM_AGENTS * VIBE_DIM).to(device)
             initial_vibe_flat = self.generic_projector(data)
 
         batch_size = initial_vibe_flat.shape[0]
@@ -75,10 +78,18 @@ class FluidNetworkV1(nn.Module):
         else:
             return self.regression_head(final_vibe_flat)
             
-    def transcribe(self, audio_data):
+    def transcribe(self, audio_batch):
+        """
+        Processes a batch of audio tensors and returns a batch of mock transcriptions.
+        """
         with torch.no_grad():
-            logits = self.forward(audio_data, pillar_id=1)
-        return f"vibe_transcription_ids_{torch.argmax(logits, dim=-1).shape}"
+            logits = self.forward(audio_batch, pillar_id=1)
+        
+        # This is a mock transcription. In a real scenario, this would involve
+        # a proper decoding algorithm (e.g., CTC beam search).
+        # For now, we return a fixed string for each item in the batch.
+        batch_size = audio_batch.shape[0]
+        return [f"mock_transcription_for_item_{i}" for i in range(batch_size)]
 
     def predict(self, data, pillar_id):
         if pillar_id in [4, 5] and isinstance(data, list):

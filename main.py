@@ -24,12 +24,18 @@ PILLAR_MAP = {
     11: "pillar_11_ood_geometry_fit",
 }
 
+SUPPORTED_MODELS = {'v1', 'v2', 'v3'}
+
 def get_model(version_str):
     """Dynamically selects the model based on version."""
-    if version_str.lower() == 'v1':
+    version_key = version_str.lower()
+    if version_key not in SUPPORTED_MODELS:
+        raise ValueError(f"Model version '{version_str}' is not supported. Please choose from: {list(SUPPORTED_MODELS)}")
+
+    if version_key == 'v1':
         print("--- Loading Model Architecture: v1 (Fixed Graph ODE) ---")
         return FluidNetworkV1()
-    if version_str.lower() == 'v3':
+    if version_key == 'v3':
         print("--- Loading Model Architecture: v3 (Affinity-Biased Attention ODE) ---")
         return FluidNetworkV3()
     # Default to v2
@@ -50,18 +56,30 @@ def main():
     parser.add_argument(
         '--model_version',
         type=str,
-        default='v3', # Default to the latest model
-        help="Specify the model version to run ('v1', 'v2', 'v3')."
+        default='v3',
+        help=f"Specify the model version to run {list(SUPPORTED_MODELS)}."
+    )
+    parser.add_argument(
+        '--smoke',
+        action='store_true',
+        help="Run a quick smoke test to check for basic errors."
     )
     args = parser.parse_args()
+
+    if args.smoke:
+        print("--- Smoke test mode: Will run minimal checks and exit. ---")
+        # You could add logic here to run only one test, etc.
+        # For now, it just ensures the script can start.
+        pillars_to_run = [1] # just run one pillar for a smoke test
+    else:
+        pillars_to_run = args.pillar if args.pillar else range(1, 12)
 
     print("--- Setting up the model ---")
     model = get_model(args.model_version)
     print("--- Model setup complete ---")
 
-    pillars_to_run = args.pillar if args.pillar else range(1, 12)
-
     for pillar_id in pillars_to_run:
+        pillar_name = f"pillar_{pillar_id:02d}"
         if pillar_id not in PILLAR_MAP:
             print(f"Pillar {pillar_id} is not defined. Skipping.")
             continue

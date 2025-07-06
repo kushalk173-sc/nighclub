@@ -3,6 +3,7 @@ import torch.nn as nn
 import timm
 from transformers import AutoModel, AutoTokenizer
 from .nightclub_ode import NightclubODE
+from utils.dev import get_device
 import os
 
 # Define constants for our Nightclub analogy
@@ -17,14 +18,15 @@ class FluidNetwork(nn.Module):
     """
     def __init__(self, num_classes=1000):
         super().__init__()
+        device = get_device()
         print("Initializing FluidNetwork model (v2 - Attention ODE)...")
 
         # --- 1. Modality-Specific Encoders ---
-        self.vision_encoder = timm.create_model('vit_tiny_patch16_224', pretrained=True, num_classes=0)
-        self.audio_encoder = AutoModel.from_pretrained("facebook/wav2vec2-base-960h")
+        self.vision_encoder = timm.create_model('vit_tiny_patch16_224', pretrained=True, num_classes=0).to(device)
+        self.audio_encoder = AutoModel.from_pretrained("facebook/wav2vec2-base-960h").to(device)
         self.audio_encoder.feature_extractor._freeze_parameters()
         self.text_encoder_name = "distilbert-base-uncased"
-        self.text_encoder = AutoModel.from_pretrained(self.text_encoder_name)
+        self.text_encoder = AutoModel.from_pretrained(self.text_encoder_name).to(device)
         self.tokenizer = AutoTokenizer.from_pretrained(self.text_encoder_name)
 
         # --- 2. Projectors to create the "Initial Vibe" h(0) ---
@@ -63,11 +65,11 @@ class FluidNetwork(nn.Module):
         elif pillar_id in [4, 5]:
             encoded_state = self.text_encoder(**data).last_hidden_state[:, 0] # CLS token
             initial_vibe_flat = self.text_projector(encoded_state)
-        else: # Generic numerical data for other pillars
-            # We need to project the generic data to the right dimension
-            # Assuming data is (batch, 10), we add a simple generic projector
+        else:
+            # Lazy initialization of a generic projector for other pillars
             if not hasattr(self, 'generic_projector'):
-                self.generic_projector = nn.Linear(10, NUM_ROOMS * VIBE_DIM).to(data.device)
+                device = data.device # Ensure projector is on the same device as data
+                self.generic_projector = nn.Linear(data.shape[1], NUM_ROOMS * VIBE_DIM).to(device)
             initial_vibe_flat = self.generic_projector(data)
 
         # Reshape the flat vector into the structured "vibe" tensor for the ODE
@@ -94,13 +96,10 @@ class FluidNetwork(nn.Module):
         
         return logits
             
-    def transcribe(self, audio_data):
-        print("  - [FluidNetwork] Transcribing audio...")
-        with torch.no_grad():
-            logits = self.forward(audio_data, pillar_id=1)
-        # Note: This is still a mock transcription. A real one needs a proper decoder.
-        predicted_ids = torch.argmax(logits, dim=-1)
-        return f"vibe_transcription_ids_{predicted_ids.shape}"
+    def transcribe(self, audio_batch):
+        # For now, we return a fixed string for each item in the batch.
+        batch_size = audio_batch.shape[0]
+        return [f"mock_transcription_for_item_{i}" for i in range(batch_size)]
 
     def predict(self, data, pillar_id):
         print(f"  - [FluidNetwork] Predicting for Pillar {pillar_id}...")

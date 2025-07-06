@@ -1,27 +1,17 @@
 import torch
-import random
 
-# A small set of mock transcripts to make the test more realistic
-MOCK_TRANSCRIPTS = [
-    "the quick brown fox jumps over the lazy dog",
-    "a stitch in time saves nine",
-    "curiosity killed the cat",
-    "speak of the devil",
-]
-
-def load_audio_data(test_id):
+def load_data(test_id, batch_size=4):
     """
-    Mocks the data loading process for a given ASR test.
-    This now returns a realistic audio tensor.
+    Generates a batch of dummy audio data.
+    This is a robust placeholder to ensure the pipeline runs without real data.
     """
     print(f"  - (Pillar 1) Loading mock audio for test {test_id}.")
     
-    # Simulate loading a 5-second audio clip at 16kHz, as a PyTorch tensor
-    mock_audio_tensor = torch.randn(16000 * 5)
+    # batch_size, num_samples (1 second of audio at 16kHz)
+    wav = torch.randn(batch_size, 16000)
     
-    # Provide a mock ground-truth transcript.
-    ground_truth = random.choice(MOCK_TRANSCRIPTS)
+    # Mock ground truth for the batch
+    target = ["the quick brown fox jumps over the lazy dog"] * batch_size
     
-    print(f"  - Loaded mock audio tensor. Shape: {mock_audio_tensor.shape}")
-    
-    return mock_audio_tensor, ground_truth 
+    print(f"  - Loaded mock audio batch. Shape: {wav.shape}")
+    return wav, target 
