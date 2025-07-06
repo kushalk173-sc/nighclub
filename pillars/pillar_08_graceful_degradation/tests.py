@@ -18,7 +18,8 @@ def run_all_tests(model):
     for i in range(10):
         test_id = (pillar_id - 1) * 10 + 1 + i
         print(f"--- Running Pillar {pillar_id} Test #{test_id}: {pillar_name} Test #{i+1} ---")
-        data, _ = load_data(test_id)
+        data, _ = load_data(test_id)\n        device = next(model.parameters()).device
+        data = data.to(device)
         device = next(model.parameters()).device
         data = data.to(device)
 

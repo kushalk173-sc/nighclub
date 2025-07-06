@@ -67,9 +67,13 @@ def run_all_benchmarks():
 
         except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
             print(f"!!! ERROR during benchmark for model '{model_version}' !!!", file=sys.stderr)
-            print(f"Error details: {e}", file=sys.stderr)
-            if hasattr(e, 'stderr'):
-                print(f"Stderr: {e.stderr}", file=sys.stderr)
+            if isinstance(e, subprocess.CalledProcessError):
+                print("--- STDOUT ---", file=sys.stderr)
+                print(e.stdout, file=sys.stderr)
+                print("--- STDERR ---", file=sys.stderr)
+                print(e.stderr, file=sys.stderr)
+            else:
+                print(f"JSON Decode Error: {e}", file=sys.stderr)
             # Record failure
             all_results[model_version] = {p: "FAIL" for p in range(1, 12)}
             

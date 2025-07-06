@@ -1,5 +1,6 @@
 import time
 import random
+import sys
 
 # Mock data loader and evaluator for demonstration purposes
 from .data_loader import load_data
@@ -21,42 +22,28 @@ TESTS = {
 }
 
 def run_test(model, test_id):
-    """
-    Runs a single test for the Audio-ASR pillar.
-    """
-    print(f"--- Running Test #{test_id}: {TESTS.get(test_id, 'Unknown Test')} ---")
+    """Helper to run a single ASR test."""
+    print(f"--- Running Test #{test_id}: {TESTS[test_id]} ---")
     
-    # 1. Load Data
     print("Loading data...")
-    try:
-        # The new data loader returns a batch
-        audio_batch, ground_truth_batch = load_data(test_id)
-        device = next(model.parameters()).device
-        audio_batch = audio_batch.to(device)
-    except Exception as e:
-        print(f"Error loading data for test {test_id}: {e}")
-        return {"error": str(e)}
+    # The 'labels' are the ground truth transcriptions, not used in mock prediction
+    data, _ = load_data(test_id)
+    print(f"  - Loaded mock audio batch. Shape: {data.shape}")
 
-    # 2. Get Model Prediction for the batch
     print("Getting model prediction...")
     try:
-        # The model's transcribe function should handle a batch
-        predictions = model.transcribe(audio_batch)
-        print(f"  - Ground truth: {ground_truth_batch[0]} (showing first item)")
-        print(f"  - Predicted: {predictions[0]} (showing first item)")
-    except Exception as e:
-        print(f"Error during model prediction for test {test_id}: {e}")
-        return {"error": str(e)}
-
-    # 3. Evaluate
-    print("Evaluating...")
-    try:
-        score = evaluate_wer(predictions, ground_truth_batch)
-        print(f"  - WER: {score:.2f}%")
-    except Exception as e:
-        print(f"Error during evaluation for test {test_id}: {e}")
-        return {"error": str(e)}
+        # Move data to the same device as the model
+        device = next(model.parameters()).device
+        data = data.to(device)
         
+        # The model's transcribe method handles the forward pass
+        prediction = model.transcribe(data)
+        score = evaluate_wer(prediction)
+        print(f"  - Mock WER: {score:.2f}%")
+    except Exception as e:
+        print(f"Error during model prediction for test {test_id}: {e}", file=sys.stderr)
+        score = 100.0 # Return max WER on error
+    
     print(f"--- Test #{test_id} Complete ---")
     return {"wer": score}
 

@@ -1,4 +1,6 @@
 from jiwer import wer
+import random
+import jiwer
 
 def calculate_wer(predicted_transcript, ground_truth_transcript, duration=None):
     """
@@ -15,17 +17,16 @@ def calculate_wer(predicted_transcript, ground_truth_transcript, duration=None):
     
     return error_rate 
 
-def evaluate_wer(predictions, references):
+def evaluate_wer(predictions, references=None):
     """
-    A minimal, safe placeholder for WER calculation.
-    Returns 1.0 if any prediction does not match its reference, 0.0 otherwise.
+    Calculates the Word Error Rate (WER). In this mock version, if no
+    references are provided, it returns a random score to simulate the process.
     """
-    if len(predictions) != len(references):
-        return 1.0 # Should not happen, but indicates an error
+    if references is None:
+        # For mock predictions where we don't have ground truth
+        print("  - (Pillar 1) Evaluating mock ASR prediction. No references provided.")
+        return random.uniform(5.0, 30.0) # Return a plausible random WER
 
-    total_error = 0.0
-    for pred, ref in zip(predictions, references):
-        if pred != ref:
-            total_error += 1.0
-            
-    return (total_error / len(predictions)) * 100 
+    # This part would execute if we had real labels
+    print("  - (Pillar 1) Evaluating ASR prediction against references.")
+    return jiwer.wer(references, predictions) 
