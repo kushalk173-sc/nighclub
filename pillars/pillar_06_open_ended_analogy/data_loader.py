@@ -1,7 +1,9 @@
 import torch
+import os
 import json
 import random
 from pathlib import Path
+from utils.dev import get_device
 
 def load_data(test_id, batch_size=4):
     """
@@ -65,6 +67,11 @@ def load_data(test_id, batch_size=4):
             output_data = torch.stack(output_patterns) if isinstance(output_patterns[0], torch.Tensor) else torch.tensor(output_patterns)
     except Exception as e:
         raise ValueError(f"Error converting analogy data to tensors: {e}")
+    
+    # Move to the correct device
+    device = get_device()
+    input_data = input_data.to(device)
+    output_data = output_data.to(device)
     
     print(f"  - Loaded real analogy batch. Input shape: {input_data.shape}")
     print(f"  - Output shape: {output_data.shape}")

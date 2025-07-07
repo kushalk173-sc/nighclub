@@ -29,33 +29,30 @@ class FluidNetwork(nn.Module):
         self.text_encoder = AutoModel.from_pretrained(self.text_encoder_name).to(device)
         self.tokenizer = AutoTokenizer.from_pretrained(self.text_encoder_name)
 
-        # --- 2. Projectors to create the "Initial Vibe" h(0) ---
-        # These layers will take the encoder outputs and map them to the initial state
-        # of our nightclub's rooms: (batch_size, num_rooms, vibe_dim)
-        self.vision_projector = nn.Linear(self.vision_encoder.num_features, NUM_ROOMS * VIBE_DIM)
-        # For audio, we'll take the mean of the sequence
-        self.audio_projector = nn.Linear(self.audio_encoder.config.hidden_size, NUM_ROOMS * VIBE_DIM)
-        # For text, we'll use the [CLS] token's output
-        self.text_projector = nn.Linear(self.text_encoder.config.hidden_size, NUM_ROOMS * VIBE_DIM)
+        # --- Projectors ---
+        self.vision_projector = nn.Linear(self.vision_encoder.num_features, NUM_ROOMS * VIBE_DIM).to(device)
+        self.audio_projector = nn.Linear(self.audio_encoder.config.hidden_size, NUM_ROOMS * VIBE_DIM).to(device)
+        self.text_projector = nn.Linear(self.text_encoder.config.hidden_size, NUM_ROOMS * VIBE_DIM).to(device)
 
         # --- 3. The Core Fluid Dynamics Model ---
-        self.nightclub_ode = NightclubODE(VIBE_DIM)
+        self.nightclub_ode = NightclubODE(VIBE_DIM).to(device)
 
-        # --- 4. Task-specific Heads (act on the "Final Vibe") ---
-        # The input to these heads is the flattened final state of all rooms
+        # --- Heads ---
         final_vibe_dim = NUM_ROOMS * VIBE_DIM
-        self.vision_head = nn.Linear(final_vibe_dim, num_classes)
-        self.asr_head = nn.Linear(final_vibe_dim, self.audio_encoder.config.vocab_size)
-        self.text_head = nn.Linear(final_vibe_dim, 2)
-        self.regression_head = nn.Linear(final_vibe_dim, 1)
+        self.vision_head = nn.Linear(final_vibe_dim, num_classes).to(device)
+        self.asr_head = nn.Linear(final_vibe_dim, self.audio_encoder.config.vocab_size).to(device)
+        self.text_head = nn.Linear(final_vibe_dim, 2).to(device)
+        self.regression_head = nn.Linear(final_vibe_dim, 1).to(device)
 
         print("FluidNetwork model initialized successfully.")
 
     def forward(self, data, pillar_id):
-        # --- Step 1: Encode input and create Initial Vibe h(0) ---
+        # Ensure data is on the correct device
+        device = next(self.parameters()).device
+        if isinstance(data, torch.Tensor):
+            data = data.to(device)
+        
         if pillar_id == 1:
-            # Note: ASR is complex. For this baseline, we simplify by taking the mean
-            # of the audio features to create the initial vibe.
             if data.dim() == 1: data = data.unsqueeze(0)
             encoded_state = self.audio_encoder(data).last_hidden_state.mean(dim=1)
             initial_vibe_flat = self.audio_projector(encoded_state)
@@ -63,13 +60,15 @@ class FluidNetwork(nn.Module):
             encoded_state = self.vision_encoder(data)
             initial_vibe_flat = self.vision_projector(encoded_state)
         elif pillar_id in [4, 5]:
-            encoded_state = self.text_encoder(**data).last_hidden_state[:, 0] # CLS token
+            # For text data, ensure it's on the correct device
+            if isinstance(data, dict):
+                data = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in data.items()}
+            encoded_state = self.text_encoder(**data).last_hidden_state[:, 0]
             initial_vibe_flat = self.text_projector(encoded_state)
         else:
-            # Lazy initialization of a generic projector for other pillars
             if not hasattr(self, 'generic_projector'):
                 device = data.device # Ensure projector is on the same device as data
-                self.generic_projector = nn.Linear(data.shape[1], NUM_ROOMS * VIBE_DIM).to(device)
+                self.generic_projector = nn.Linear(10, NUM_ROOMS * VIBE_DIM).to(device)
             initial_vibe_flat = self.generic_projector(data)
 
         # Reshape the flat vector into the structured "vibe" tensor for the ODE
@@ -97,9 +96,34 @@ class FluidNetwork(nn.Module):
         return logits
             
     def transcribe(self, audio_batch):
-        # For now, we return a fixed string for each item in the batch.
-        batch_size = audio_batch.shape[0]
-        return [f"mock_transcription_for_item_{i}" for i in range(batch_size)]
+        """
+        Processes a batch of audio tensors and returns real transcriptions.
+        """
+        with torch.no_grad():
+            # Get logits from the model
+            logits = self.forward(audio_batch, pillar_id=1)
+            
+            # Convert logits to probabilities
+            probs = torch.softmax(logits, dim=-1)
+            
+            # Get the most likely class for each sample
+            predictions = torch.argmax(probs, dim=-1)
+            
+            # Convert predictions to transcriptions
+            # For now, we'll use a simple vocabulary mapping
+            # In a real implementation, this would use a proper CTC decoder
+            vocab = "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
+            transcriptions = []
+            
+            for pred in predictions:
+                # Convert numeric predictions to characters
+                chars = []
+                for p in pred:
+                    if p < len(vocab):
+                        chars.append(vocab[p])
+                transcriptions.append(''.join(chars).strip())
+            
+            return transcriptions
 
     def predict(self, data, pillar_id):
         print(f"  - [FluidNetwork] Predicting for Pillar {pillar_id}...")

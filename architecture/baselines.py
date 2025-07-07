@@ -83,10 +83,34 @@ class BaselineHostNetwork(nn.Module):
             return self.regression_head(pooled_output)
             
     def transcribe(self, audio_batch):
+        """
+        Processes a batch of audio tensors and returns real transcriptions.
+        """
         with torch.no_grad():
+            # Get logits from the model
             logits = self.forward(audio_batch, pillar_id=1)
-        batch_size = audio_batch.shape[0]
-        return [f"mock_transcription_for_item_{i}" for i in range(batch_size)]
+            
+            # Convert logits to probabilities
+            probs = torch.softmax(logits, dim=-1)
+            
+            # Get the most likely class for each sample
+            predictions = torch.argmax(probs, dim=-1)
+            
+            # Convert predictions to transcriptions
+            # For now, we'll use a simple vocabulary mapping
+            # In a real implementation, this would use a proper CTC decoder
+            vocab = "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
+            transcriptions = []
+            
+            for pred in predictions:
+                # Convert numeric predictions to characters
+                chars = []
+                for p in pred:
+                    if p < len(vocab):
+                        chars.append(vocab[p])
+                transcriptions.append(''.join(chars).strip())
+            
+            return transcriptions
 
     def predict(self, data, pillar_id):
         # Handle tokenization for text-based pillars

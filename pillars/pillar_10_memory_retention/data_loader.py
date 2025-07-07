@@ -1,69 +1,59 @@
 import torch
-import numpy as np
+import os
 import random
 from pathlib import Path
+from utils.dev import get_device
 
 def load_data(test_id, batch_size=4):
     """
-    Loads real CIFAR-10 data for continual learning memory retention tests.
-    Uses CIFAR-10 data from data/cifar-10-batches-py/.
+    Loads real image data and corresponding labels from processed data.
+    Uses the processed data from data/pillar_10_processed/.
     """
-    print(f"  - (Pillar 10) Loading real CIFAR-10 data for continual learning test {test_id}.")
+    print(f"  - (Pillar 10) Loading real image data for test {test_id}.")
     
-    # Paths to CIFAR-10 data
-    cifar_dir = Path("data/cifar-10-batches-py")
+    # Paths to processed data
+    data_dir = Path("data/pillar_10_processed/data")
+    labels_dir = Path("data/pillar_10_processed/labels")
     
-    if not cifar_dir.exists():
-        raise FileNotFoundError(f"CIFAR-10 data not found in {cifar_dir}")
+    # Get all available data files
+    data_files = list(data_dir.glob("*.pt"))
+    if not data_files:
+        raise FileNotFoundError(f"No data files found in {data_dir}")
     
-    # Load CIFAR-10 data
-    try:
-        import pickle
-        import gzip
+    # Randomly sample batch_size files
+    selected_files = random.sample(data_files, min(batch_size, len(data_files)))
+    
+    # Load data tensors and labels
+    data_batch = []
+    label_batch = []
+    
+    for data_file in selected_files:
+        # Load data tensor with weights_only=True to suppress warnings
+        data_tensor = torch.load(data_file, weights_only=True)
+        # Ensure tensor is on CPU initially
+        data_tensor = data_tensor.cpu()
+        data_batch.append(data_tensor)
         
-        # Load training data
-        with open(cifar_dir / "data_batch_1", 'rb') as f:
-            batch = pickle.load(f, encoding='bytes')
+        # Load corresponding label
+        label_file = labels_dir / f"{data_file.stem}.pt"
+        if not label_file.exists():
+            raise FileNotFoundError(f"Label file {label_file} not found for data file {data_file}")
         
-        images = batch[b'data']
-        labels = batch[b'labels']
-        
-        # Reshape images to (N, 3, 32, 32)
-        images = images.reshape(-1, 3, 32, 32).astype(np.float32) / 255.0
-        labels = np.array(labels)
-        
-    except Exception as e:
-        raise ValueError(f"Error loading CIFAR-10 data: {e}")
+        label_tensor = torch.load(label_file, weights_only=True)
+        # Ensure tensor is on CPU initially
+        label_tensor = label_tensor.cpu()
+        label_batch.append(label_tensor)
     
-    # Create task splits for continual learning
-    # Each task contains 2 classes
-    task_id = (test_id - 81) % 5  # 5 tasks (0-4)
-    class_start = task_id * 2
-    class_end = class_start + 2
+    # Stack tensors into batches
+    data = torch.stack(data_batch)
+    labels = torch.stack(label_batch).squeeze()  # Remove extra dimension if present
     
-    # Filter data for this task
-    task_mask = (labels >= class_start) & (labels < class_end)
-    task_images = images[task_mask]
-    task_labels = labels[task_mask]
+    # Move to the correct device
+    device = get_device()
+    data = data.to(device)
+    labels = labels.to(device)
     
-    if len(task_images) == 0:
-        raise ValueError(f"No CIFAR-10 data found for task {task_id} (classes {class_start}-{class_end-1})")
+    print(f"  - Loaded real data batch. Shape: {data.shape}")
+    print(f"  - Labels shape: {labels.shape}")
     
-    # Randomly sample batch_size samples
-    n_samples = len(task_images)
-    if batch_size > n_samples:
-        batch_size = n_samples
-    
-    indices = random.sample(range(n_samples), batch_size)
-    selected_images = task_images[indices]
-    selected_labels = task_labels[indices]
-    
-    # Convert to tensors
-    image_tensors = torch.tensor(selected_images, dtype=torch.float32)
-    label_tensors = torch.tensor(selected_labels, dtype=torch.long)
-    
-    print(f"  - Loaded real CIFAR-10 batch for task {task_id}. Shape: {image_tensors.shape}")
-    print(f"  - Labels shape: {label_tensors.shape}")
-    print(f"  - Classes: {class_start}-{class_end-1}")
-    
-    return image_tensors, label_tensors
+    return data, labels

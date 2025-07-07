@@ -23,7 +23,7 @@ TESTS = {
 
 def run_test(model, test_id):
     """Helper to run a single ASR test."""
-    print(f"--- Running Test #{test_id}: {TESTS[test_id]} ---")
+    print(f"Running Test #{test_id}: {TESTS[test_id]} ---")
     
     print("Loading data...")
     # Load both audio data and ground truth transcripts
@@ -60,7 +60,10 @@ def run_all_tests(model):
     print("==================================================")
   
     results = {}
-    for test_id in TESTS:
+    total_tests = len(TESTS)
+    
+    for test_idx, test_id in enumerate(TESTS, 1):
+        print(f"\n[{test_idx}/{total_tests}] ", end="")
         test_result = run_test(model, test_id)
         # Store the raw score from the result dictionary
         if 'wer' in test_result:

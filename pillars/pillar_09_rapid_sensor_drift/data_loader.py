@@ -1,7 +1,8 @@
 import torch
-import numpy as np
+import os
 import random
 from pathlib import Path
+from utils.dev import get_device
 
 def load_data(test_id, batch_size=4):
     """
@@ -11,30 +12,48 @@ def load_data(test_id, batch_size=4):
     print(f"  - (Pillar 9) Loading real sensor drift data for test {test_id}.")
     
     # Paths to processed data
-    sensor_file = Path("data/pillar_9_processed/sensor_data.npy")
-    labels_file = Path("data/pillar_9_processed/drift_labels.npy")
+    data_dir = Path("data/pillar_9_processed/data")
+    labels_dir = Path("data/pillar_9_processed/labels")
     
-    if not sensor_file.exists() or not labels_file.exists():
-        raise FileNotFoundError(f"Sensor drift data files not found in data/pillar_9_processed/")
+    # Get all available data files
+    data_files = list(data_dir.glob("*.pt"))
+    if not data_files:
+        raise FileNotFoundError(f"No data files found in {data_dir}")
     
-    # Load sensor data and drift labels
-    sensor_data = np.load(sensor_file)
-    drift_labels = np.load(labels_file)
+    # Randomly sample batch_size files
+    selected_files = random.sample(data_files, min(batch_size, len(data_files)))
     
-    # Randomly sample batch_size samples
-    n_samples = len(sensor_data)
-    if batch_size > n_samples:
-        batch_size = n_samples
+    # Load data tensors and labels
+    data_batch = []
+    label_batch = []
     
-    indices = random.sample(range(n_samples), batch_size)
-    selected_data = sensor_data[indices]
-    selected_labels = drift_labels[indices]
+    for data_file in selected_files:
+        # Load data tensor with weights_only=True to suppress warnings
+        data_tensor = torch.load(data_file, weights_only=True)
+        # Ensure tensor is on CPU initially
+        data_tensor = data_tensor.cpu()
+        data_batch.append(data_tensor)
+        
+        # Load corresponding label
+        label_file = labels_dir / f"{data_file.stem}.pt"
+        if not label_file.exists():
+            raise FileNotFoundError(f"Label file {label_file} not found for data file {data_file}")
+        
+        label_tensor = torch.load(label_file, weights_only=True)
+        # Ensure tensor is on CPU initially
+        label_tensor = label_tensor.cpu()
+        label_batch.append(label_tensor)
     
-    # Convert to tensors
-    data_tensors = torch.tensor(selected_data, dtype=torch.float32)
-    label_tensors = torch.tensor(selected_labels, dtype=torch.float32).unsqueeze(1)
+    # Stack tensors into batches
+    data = torch.stack(data_batch)
+    labels = torch.stack(label_batch).squeeze()  # Remove extra dimension if present
     
-    print(f"  - Loaded real sensor drift batch. Shape: {data_tensors.shape}")
-    print(f"  - Drift labels shape: {label_tensors.shape}")
+    # Move to the correct device
+    device = get_device()
+    data = data.to(device)
+    labels = labels.to(device)
     
-    return data_tensors, label_tensors
+    print(f"  - Loaded real sensor drift batch. Shape: {data.shape}")
+    print(f"  - Labels shape: {labels.shape}")
+    
+    return data, labels

@@ -108,8 +108,12 @@ def run_pillar_tests(model, pillars_to_run):
     Runs all tests for a given list of pillars and returns the results.
     """
     all_results = {}
-    for pillar_id in pillars_to_run:
+    total_pillars = len(pillars_to_run)
+    
+    for pillar_idx, pillar_id in enumerate(pillars_to_run, 1):
         pillar_name = f"pillar_{pillar_id:02d}"
+        print(f"\n[{pillar_idx}/{total_pillars}] Running Pillar {pillar_id}...")
+        
         if pillar_id not in PILLAR_MAP:
             print(f"Pillar {pillar_id} is not defined. Skipping.")
             continue
@@ -119,8 +123,10 @@ def run_pillar_tests(model, pillars_to_run):
             pillar_test_module = importlib.import_module(f"pillars.{pillar_module_name}.tests")
             
             # This runs all 10 tests within the pillar's `tests.py` file
+            print(f"  - Executing 10 tests for Pillar {pillar_id}...")
             pillar_results = pillar_test_module.run_all_tests(model)
             all_results[pillar_id] = pillar_results
+            print(f"  ✓ Completed Pillar {pillar_id}")
 
         except ImportError as e:
             print(f"Could not import or run tests for Pillar {pillar_id}. Error: {e}", file=sys.stderr)
@@ -172,7 +178,7 @@ def main():
 
     if args.smoke:
         print("--- Smoke test mode: Will run minimal checks and exit. ---")
-        pillars_to_run = [1, 2]  # Only run first 2 pillars for quick test
+        pillars_to_run = [1, 2, 3]  # Run first 3 pillars for quick test
     else:
         pillars_to_run = args.pillar if args.pillar else range(1, 12)
     print(f"[DEBUG] Pillars to run: {pillars_to_run}")

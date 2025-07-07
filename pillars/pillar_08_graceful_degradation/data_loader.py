@@ -2,6 +2,7 @@ import torch
 import os
 import random
 from pathlib import Path
+from utils.dev import get_device
 
 def load_data(test_id, batch_size=4):
     """
@@ -35,7 +36,7 @@ def load_data(test_id, batch_size=4):
     for image_file in selected_files:
         # Load image tensor with weights_only=True to suppress warnings
         image_tensor = torch.load(image_file, weights_only=True)
-        # Ensure tensor is on CPU
+        # Ensure tensor is on CPU initially
         image_tensor = image_tensor.cpu()
         image_batch.append(image_tensor)
         
@@ -45,13 +46,18 @@ def load_data(test_id, batch_size=4):
             raise FileNotFoundError(f"Label file {label_file} not found for image file {image_file}")
         
         label_tensor = torch.load(label_file, weights_only=True)
-        # Ensure tensor is on CPU
+        # Ensure tensor is on CPU initially
         label_tensor = label_tensor.cpu()
         label_batch.append(label_tensor)
     
     # Stack tensors into batches
     images = torch.stack(image_batch)
     labels = torch.stack(label_batch).squeeze()  # Remove extra dimension if present
+    
+    # Move to the correct device
+    device = get_device()
+    images = images.to(device)
+    labels = labels.to(device)
     
     print(f"  - Loaded real image batch. Shape: {images.shape}")
     print(f"  - Labels shape: {labels.shape}")

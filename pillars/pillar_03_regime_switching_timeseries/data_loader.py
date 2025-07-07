@@ -2,6 +2,7 @@ import torch
 import os
 import random
 from pathlib import Path
+from utils.dev import get_device
 
 def load_data(test_id, batch_size=4):
     """
@@ -29,7 +30,7 @@ def load_data(test_id, batch_size=4):
     for data_file in selected_files:
         # Load time series tensor with weights_only=True to suppress warnings
         time_series_tensor = torch.load(data_file, weights_only=True)
-        # Ensure tensor is on CPU
+        # Ensure tensor is on CPU initially
         time_series_tensor = time_series_tensor.cpu()
         data_batch.append(time_series_tensor)
         
@@ -39,7 +40,7 @@ def load_data(test_id, batch_size=4):
             raise FileNotFoundError(f"Label file {label_file} not found for data file {data_file}")
         
         label_tensor = torch.load(label_file, weights_only=True)
-        # Ensure tensor is on CPU
+        # Ensure tensor is on CPU initially
         label_tensor = label_tensor.cpu()
         label_batch.append(label_tensor)
     
@@ -59,6 +60,11 @@ def load_data(test_id, batch_size=4):
     
     data = torch.stack(padded_data)
     labels = torch.stack(label_batch).squeeze()  # Remove extra dimension if present
+    
+    # Move to the correct device
+    device = get_device()
+    data = data.to(device)
+    labels = labels.to(device)
     
     print(f"  - Loaded real time series batch. Shape: {data.shape}")
     print(f"  - Labels shape: {labels.shape}")

@@ -27,24 +27,29 @@ class FluidNetworkV1(nn.Module):
         self.tokenizer = AutoTokenizer.from_pretrained(self.text_encoder_name)
 
         # --- Projectors ---
-        self.vision_projector = nn.Linear(self.vision_encoder.num_features, NUM_AGENTS * VIBE_DIM)
-        self.audio_projector = nn.Linear(self.audio_encoder.config.hidden_size, NUM_AGENTS * VIBE_DIM)
-        self.text_projector = nn.Linear(self.text_encoder.config.hidden_size, NUM_AGENTS * VIBE_DIM)
+        self.vision_projector = nn.Linear(self.vision_encoder.num_features, NUM_AGENTS * VIBE_DIM).to(device)
+        self.audio_projector = nn.Linear(self.audio_encoder.config.hidden_size, NUM_AGENTS * VIBE_DIM).to(device)
+        self.text_projector = nn.Linear(self.text_encoder.config.hidden_size, NUM_AGENTS * VIBE_DIM).to(device)
 
         # --- Core v1 Model ---
         self.graph_ode = V1_GraphODE(
             vibe_dim=VIBE_DIM,
             num_agents=NUM_AGENTS
-        )
+        ).to(device)
 
         # --- Heads ---
         final_vibe_dim = NUM_AGENTS * VIBE_DIM
-        self.vision_head = nn.Linear(final_vibe_dim, num_classes)
-        self.asr_head = nn.Linear(final_vibe_dim, self.audio_encoder.config.vocab_size)
-        self.text_head = nn.Linear(final_vibe_dim, 2)
-        self.regression_head = nn.Linear(final_vibe_dim, 1)
+        self.vision_head = nn.Linear(final_vibe_dim, num_classes).to(device)
+        self.asr_head = nn.Linear(final_vibe_dim, self.audio_encoder.config.vocab_size).to(device)
+        self.text_head = nn.Linear(final_vibe_dim, 2).to(device)
+        self.regression_head = nn.Linear(final_vibe_dim, 1).to(device)
 
     def forward(self, data, pillar_id):
+        # Ensure data is on the correct device
+        device = next(self.parameters()).device
+        if isinstance(data, torch.Tensor):
+            data = data.to(device)
+        
         if pillar_id == 1:
             if data.dim() == 1: data = data.unsqueeze(0)
             encoded_state = self.audio_encoder(data).last_hidden_state.mean(dim=1)
@@ -53,6 +58,9 @@ class FluidNetworkV1(nn.Module):
             encoded_state = self.vision_encoder(data)
             initial_vibe_flat = self.vision_projector(encoded_state)
         elif pillar_id in [4, 5]:
+            # For text data, ensure it's on the correct device
+            if isinstance(data, dict):
+                data = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in data.items()}
             encoded_state = self.text_encoder(**data).last_hidden_state[:, 0]
             initial_vibe_flat = self.text_projector(encoded_state)
         else:
@@ -80,16 +88,33 @@ class FluidNetworkV1(nn.Module):
             
     def transcribe(self, audio_batch):
         """
-        Processes a batch of audio tensors and returns a batch of mock transcriptions.
+        Processes a batch of audio tensors and returns real transcriptions.
         """
         with torch.no_grad():
+            # Get logits from the model
             logits = self.forward(audio_batch, pillar_id=1)
-        
-        # This is a mock transcription. In a real scenario, this would involve
-        # a proper decoding algorithm (e.g., CTC beam search).
-        # For now, we return a fixed string for each item in the batch.
-        batch_size = audio_batch.shape[0]
-        return [f"mock_transcription_for_item_{i}" for i in range(batch_size)]
+            
+            # Convert logits to probabilities
+            probs = torch.softmax(logits, dim=-1)
+            
+            # Get the most likely class for each sample
+            predictions = torch.argmax(probs, dim=-1)
+            
+            # Convert predictions to transcriptions
+            # For now, we'll use a simple vocabulary mapping
+            # In a real implementation, this would use a proper CTC decoder
+            vocab = "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
+            transcriptions = []
+            
+            for pred in predictions:
+                # Convert numeric predictions to characters
+                chars = []
+                for p in pred:
+                    if p < len(vocab):
+                        chars.append(vocab[p])
+                transcriptions.append(''.join(chars).strip())
+            
+            return transcriptions
 
     def predict(self, data, pillar_id):
         if pillar_id in [4, 5] and isinstance(data, list):

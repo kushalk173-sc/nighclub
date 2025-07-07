@@ -22,9 +22,7 @@ def evaluate_wer(predictions, references=None):
     Calculates the Word Error Rate (WER) using real ground truth references.
     """
     if references is None:
-        # Fallback for cases where no references are provided
-        print("  - (Pillar 1) Warning: No references provided, using fallback evaluation.")
-        return random.uniform(5.0, 30.0) # Return a plausible random WER
+        raise ValueError("No references provided for WER evaluation")
 
     # Calculate WER for each prediction-reference pair
     print("  - (Pillar 1) Evaluating ASR prediction against real references.")
@@ -35,8 +33,7 @@ def evaluate_wer(predictions, references=None):
     elif isinstance(predictions, list) and isinstance(references, list):
         # Batch of predictions
         if len(predictions) != len(references):
-            print(f"  - Warning: Mismatch in predictions ({len(predictions)}) and references ({len(references)})")
-            return 100.0  # Return max WER for mismatch
+            raise ValueError(f"Mismatch in predictions ({len(predictions)}) and references ({len(references)})")
         
         # Calculate WER for each pair and average
         wers = []
@@ -45,11 +42,9 @@ def evaluate_wer(predictions, references=None):
                 wer_score = jiwer.wer(ref, pred)
                 wers.append(wer_score)
             except Exception as e:
-                print(f"  - Error calculating WER for pair: {e}")
-                wers.append(100.0)  # Max WER on error
+                raise ValueError(f"Error calculating WER for pair: {e}")
         
         avg_wer = sum(wers) / len(wers) if wers else 100.0
         return avg_wer
     else:
-        print(f"  - Warning: Unexpected prediction/reference types: {type(predictions)}, {type(references)}")
-        return 100.0 
+        raise ValueError(f"Unexpected prediction/reference types: {type(predictions)}, {type(references)}") 

@@ -28,9 +28,11 @@ def run_all_benchmarks():
     # Use a fixed seed for a fair comparison between models
     seed = 42
     all_results = {}
+    total_models = len(ALL_MODELS)
 
-    for model_version in ALL_MODELS:
-        print(f"\n--- Benchmarking Model: {model_version} ---")
+    for model_idx, model_version in enumerate(ALL_MODELS, 1):
+        print(f"\n[{model_idx}/{total_models}] --- Benchmarking Model: {model_version} ---")
+        print(f"  Running 11 pillars × 10 tests = 110 tests for {model_version}...")
         
         command = [
             sys.executable,
@@ -38,8 +40,7 @@ def run_all_benchmarks():
             "main.py",
             "--model_version", model_version,
             "--seed", str(seed),
-            "--json_output",
-            "--smoke"
+            "--json_output"
         ]
         
         try:
@@ -70,7 +71,7 @@ def run_all_benchmarks():
                 try:
                     parsed_results = json.loads(json_output)
                     all_results[model_version] = parsed_results
-                    print(f"✓ Successfully parsed JSON for {model_version}")
+                    print(f"  ✓ Successfully parsed JSON for {model_version}")
                 except json.JSONDecodeError as e:
                     print(f"!!! ERROR during benchmark for model '{model_version}' !!!")
                     print(f"JSON Decode Error: {e}")
@@ -94,6 +95,9 @@ def run_all_benchmarks():
             print(f"Unexpected error: {e}")
             all_results[model_version] = {"error": f"Unexpected error: {str(e)}"}
 
+    print(f"\n{'='*70}")
+    print(f"  COMPLETED: {len(all_results)}/{total_models} models benchmarked")
+    print(f"{'='*70}")
     print_results_table(all_results)
 
 def print_results_table(results):
