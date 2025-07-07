@@ -2,6 +2,8 @@ import subprocess
 import json
 import sys
 import pandas as pd
+import os
+from datetime import datetime
 
 # List of all models to be benchmarked
 ALL_MODELS = [
@@ -16,6 +18,66 @@ PILLAR_METRICS = {
     1: "WER", 2: "Acc", 3: "MAE", 4: "F1", 5: "Acc",
     6: "MAE", 7: "MAE", 8: "MAE", 9: "MAE", 10: "MAE", 11: "MAE"
 }
+
+def save_results(all_results):
+    """
+    Saves benchmark results to files in the results directory.
+    """
+    # Create results directory if it doesn't exist
+    os.makedirs('results', exist_ok=True)
+    
+    # Generate timestamp for unique filenames
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # Save complete results as JSON
+    json_filename = f"results/benchmark_results_{timestamp}.json"
+    with open(json_filename, 'w') as f:
+        json.dump(all_results, f, indent=2)
+    print(f"✓ Complete results saved to: {json_filename}")
+    
+    # Save individual model results
+    for model_name, model_results in all_results.items():
+        if isinstance(model_results, dict) and not model_results.get('error'):
+            model_filename = f"results/{model_name}_results_{timestamp}.json"
+            with open(model_filename, 'w') as f:
+                json.dump(model_results, f, indent=2)
+    
+    # Create and save summary DataFrame
+    try:
+        df = pd.DataFrame.from_dict(all_results, orient='index')
+        df = df.reindex(sorted(df.columns), axis=1)  # Sort columns by pillar number
+        
+        # Format header - handle both string and integer keys
+        header = []
+        for col in df.columns:
+            try:
+                pillar_num = int(col)
+                metric = PILLAR_METRICS.get(pillar_num, "Unknown")
+                header.append(f"Pillar {pillar_num} ({metric})")
+            except ValueError:
+                # If it's not a number, use it as is
+                header.append(col)
+        df.columns = header
+        
+        # Save as CSV
+        csv_filename = f"results/benchmark_summary_{timestamp}.csv"
+        df.to_csv(csv_filename)
+        print(f"✓ Summary table saved to: {csv_filename}")
+        
+        # Save as markdown
+        md_filename = f"results/benchmark_summary_{timestamp}.md"
+        with open(md_filename, 'w') as f:
+            f.write("# Nightclub Benchmark Results\n\n")
+            f.write(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            f.write("## Results Table\n\n")
+            f.write(df.to_markdown())
+            f.write("\n\n## Metrics\n\n")
+            f.write("- Lower is better for WER/MAE\n")
+            f.write("- Higher is better for Acc/F1\n")
+        print(f"✓ Markdown report saved to: {md_filename}")
+        
+    except Exception as e:
+        print(f"Warning: Could not save summary files: {e}")
 
 def run_all_benchmarks():
     """
@@ -98,6 +160,11 @@ def run_all_benchmarks():
     print(f"\n{'='*70}")
     print(f"  COMPLETED: {len(all_results)}/{total_models} models benchmarked")
     print(f"{'='*70}")
+    
+    # Save results to files
+    save_results(all_results)
+    
+    # Print results table
     print_results_table(all_results)
 
 def print_results_table(results):
