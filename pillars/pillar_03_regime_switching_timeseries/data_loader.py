@@ -57,8 +57,8 @@ def load_data(test_id, batch_size=4):
     # Normalize data
     data = (data - data_mean) / data_std
     
-    # Normalize labels using the same statistics
-    labels = (labels - data_mean.squeeze(-1)) / data_std.squeeze(-1)
+    # Store normalization stats for later de-normalization
+    # Don't normalize labels - they should be kept in original scale for MAE calculation
     
     # Move to the correct device
     data = to_device(data)

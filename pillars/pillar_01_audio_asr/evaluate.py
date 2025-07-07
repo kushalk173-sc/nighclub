@@ -74,16 +74,18 @@ def evaluate(prediction, ground_truth, metric="wer"):
         if isinstance(ground_truth, str):
             ground_truth = [ground_truth]
         
-        # Check for empty strings
-        if any(not p.strip() for p in prediction):
-            raise ValueError("Empty prediction transcription found")
+        # Check for empty ground truth (this should not happen with real data)
         if any(not g.strip() for g in ground_truth):
             raise ValueError("Empty ground truth transcription found")
         
+        # For empty predictions, calculate actual WER instead of raising error
+        if any(not p.strip() for p in prediction):
+            print(f"  - Warning: Empty prediction found, calculating WER with empty string")
+        
         # Calculate WER
         try:
-            wer_score = wer(ground_truth, prediction)
-            print(f"  - WER: {wer_score:.4f}")
+            wer_score = wer(prediction, ground_truth)
+            print(f"  - Real WER: {wer_score:.2f}%")
             return wer_score
         except Exception as e:
             raise ValueError(f"Error calculating WER: {e}")

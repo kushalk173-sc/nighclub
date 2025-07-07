@@ -178,7 +178,8 @@ def main():
 
     if args.smoke:
         print("--- Smoke test mode: Will run minimal checks and exit. ---")
-        pillars_to_run = [1, 2, 3]  # Run first 3 pillars for quick test
+        # In smoke mode, use specified pillars or default to first 3
+        pillars_to_run = args.pillar if args.pillar else [1, 2, 3]
     else:
         pillars_to_run = args.pillar if args.pillar else range(1, 12)
     print(f"[DEBUG] Pillars to run: {pillars_to_run}")
