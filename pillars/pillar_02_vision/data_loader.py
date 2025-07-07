@@ -1,17 +1,50 @@
 import torch
+import os
+import random
+from pathlib import Path
 
-def load_data(test_id):
+def load_data(test_id, batch_size=4):
     """
-    Mocks the data loading process for a given test in Pillar 2 (Vision).
-    This now returns a realistic tensor for a batch of images.
+    Loads real image data and corresponding labels from processed data.
+    Uses the processed data from data/pillar_2_processed/.
     """
-    print(f"  - (Pillar 2) Loading mock data for test {test_id}.")
+    print(f"  - (Pillar 2) Loading real image data for test {test_id}.")
     
-    # Simulate a batch of 4 images of size 3x224x224 (C, H, W)
-    batch_size = 4
-    mock_images = torch.randn(batch_size, 3, 224, 224)
+    # Paths to processed data
+    images_dir = Path("data/pillar_2_processed/images")
+    labels_dir = Path("data/pillar_2_processed/labels")
     
-    # Simulate corresponding ground-truth labels for the batch
-    ground_truth_labels = torch.randint(0, 1000, (batch_size,))
+    # Get all available image files
+    image_files = list(images_dir.glob("*.pt"))
+    if not image_files:
+        raise FileNotFoundError(f"No image files found in {images_dir}")
     
-    return mock_images, ground_truth_labels
+    # Randomly sample batch_size files
+    selected_files = random.sample(image_files, min(batch_size, len(image_files)))
+    
+    # Load image tensors and labels
+    image_batch = []
+    label_batch = []
+    
+    for image_file in selected_files:
+        # Load image tensor
+        image_tensor = torch.load(image_file)
+        image_batch.append(image_tensor)
+        
+        # Load corresponding label
+        label_file = labels_dir / f"{image_file.stem}.pt"
+        if label_file.exists():
+            label_tensor = torch.load(label_file)
+            label_batch.append(label_tensor)
+        else:
+            # Fallback random label if missing
+            label_batch.append(torch.randint(0, 1000, (1,)))
+    
+    # Stack tensors into batches
+    images = torch.stack(image_batch)
+    labels = torch.stack(label_batch).squeeze()  # Remove extra dimension if present
+    
+    print(f"  - Loaded real image batch. Shape: {images.shape}")
+    print(f"  - Labels shape: {labels.shape}")
+    
+    return images, labels

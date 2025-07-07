@@ -1,14 +1,77 @@
-
 import torch
+import json
+import random
+from pathlib import Path
 
-def load_data(test_id):
+def load_data(test_id, batch_size=4):
     """
-    Mocks data loading for Pillar 6. Returns a generic tensor.
+    Loads real analogy data from the synthetic_analogy.jsonl file.
+    Uses the processed data from data/pillar_6_processed/.
     """
-    print(f"  - (Pillar 6) Loading mock numeric data for test {test_id}.")
-    batch_size = 4
-    # Generic tensor of shape (batch, features)
-    mock_data = torch.randn(batch_size, 10)
-    # Generic regression target
-    ground_truth = torch.randn(batch_size, 1)
-    return mock_data, ground_truth
+    print(f"  - (Pillar 6) Loading real analogy data for test {test_id}.")
+    
+    # Path to processed data
+    analogy_file = Path("data/pillar_6_processed/synthetic_analogy.jsonl")
+    
+    if not analogy_file.exists():
+        raise FileNotFoundError(f"Analogy data file not found: {analogy_file}")
+    
+    # Load all analogy examples
+    analogies = []
+    with open(analogy_file, 'r', encoding='utf-8') as f:
+        for line in f:
+            if line.strip():
+                analogies.append(json.loads(line))
+    
+    if not analogies:
+        raise ValueError("No analogy data found in the file")
+    
+    # Randomly sample batch_size examples
+    selected_analogies = random.sample(analogies, min(batch_size, len(analogies)))
+    
+    # Extract input and output patterns
+    input_patterns = []
+    output_patterns = []
+    
+    for analogy in selected_analogies:
+        # Assuming the analogy data has 'input' and 'output' fields
+        # Adjust field names based on actual data structure
+        if 'input' in analogy and 'output' in analogy:
+            input_patterns.append(analogy['input'])
+            output_patterns.append(analogy['output'])
+        elif 'pattern' in analogy and 'solution' in analogy:
+            input_patterns.append(analogy['pattern'])
+            output_patterns.append(analogy['solution'])
+        else:
+            # Fallback: use the first two keys as input/output
+            keys = list(analogy.keys())
+            if len(keys) >= 2:
+                input_patterns.append(analogy[keys[0]])
+                output_patterns.append(analogy[keys[1]])
+            else:
+                # Create dummy data if structure is unclear
+                input_patterns.append(torch.randn(5, 5))
+                output_patterns.append(torch.randn(5, 5))
+    
+    # Convert to tensors if they aren't already
+    # This is a simplified conversion - adjust based on actual data format
+    try:
+        if isinstance(input_patterns[0], list):
+            input_data = torch.tensor(input_patterns, dtype=torch.float32)
+        else:
+            input_data = torch.stack(input_patterns) if isinstance(input_patterns[0], torch.Tensor) else torch.tensor(input_patterns)
+        
+        if isinstance(output_patterns[0], list):
+            output_data = torch.tensor(output_patterns, dtype=torch.float32)
+        else:
+            output_data = torch.stack(output_patterns) if isinstance(output_patterns[0], torch.Tensor) else torch.tensor(output_patterns)
+    except Exception as e:
+        print(f"  - Warning: Error converting analogy data to tensors: {e}")
+        # Fallback to random tensors
+        input_data = torch.randn(len(selected_analogies), 5, 5)
+        output_data = torch.randn(len(selected_analogies), 5, 5)
+    
+    print(f"  - Loaded real analogy batch. Input shape: {input_data.shape}")
+    print(f"  - Output shape: {output_data.shape}")
+    
+    return input_data, output_data

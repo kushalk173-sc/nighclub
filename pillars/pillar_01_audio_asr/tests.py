@@ -26,9 +26,9 @@ def run_test(model, test_id):
     print(f"--- Running Test #{test_id}: {TESTS[test_id]} ---")
     
     print("Loading data...")
-    # The 'labels' are the ground truth transcriptions, not used in mock prediction
-    data, _ = load_data(test_id)
-    print(f"  - Loaded mock audio batch. Shape: {data.shape}")
+    # Load both audio data and ground truth transcripts
+    data, ground_truth = load_data(test_id)
+    print(f"  - Loaded real audio batch. Shape: {data.shape}")
 
     print("Getting model prediction...")
     try:
@@ -38,8 +38,10 @@ def run_test(model, test_id):
         
         # The model's transcribe method handles the forward pass
         prediction = model.transcribe(data)
-        score = evaluate_wer(prediction)
-        print(f"  - Mock WER: {score:.2f}%")
+        
+        # Evaluate against real ground truth
+        score = evaluate_wer(prediction, ground_truth)
+        print(f"  - Real WER: {score:.2f}%")
     except Exception as e:
         print(f"Error during model prediction for test {test_id}: {e}", file=sys.stderr)
         score = 100.0 # Return max WER on error

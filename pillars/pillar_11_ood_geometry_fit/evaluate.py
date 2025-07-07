@@ -1,15 +1,25 @@
-
 import torch
+import numpy as np
 from sklearn.metrics import mean_absolute_error
 
 def evaluate(prediction, ground_truth, metric="mae"):
     """
-    Calculates Mean Absolute Error for Pillar 11.
+    Evaluates prediction for Pillar 11 (OOD Geometry Fit).
     """
     if metric == "mae":
         print(f"  - (Pillar 11) Evaluating prediction using '{metric}'.")
-        pred_np = prediction.cpu().numpy()
-        gt_np = ground_truth.cpu().numpy()
+        
+        # Handle 3D tensors (batch, points, dimensions) by flattening
+        if prediction.dim() == 3:
+            pred_np = prediction.cpu().numpy().reshape(prediction.shape[0], -1)
+        else:
+            pred_np = prediction.cpu().numpy()
+            
+        if ground_truth.dim() == 3:
+            gt_np = ground_truth.cpu().numpy().reshape(ground_truth.shape[0], -1)
+        else:
+            gt_np = ground_truth.cpu().numpy()
+        
         score = mean_absolute_error(gt_np, pred_np)
         return score
     else:

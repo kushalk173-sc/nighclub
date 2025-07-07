@@ -1,4 +1,3 @@
-
 import torch
 from sklearn.metrics import mean_absolute_error
 
@@ -8,8 +7,9 @@ def evaluate(prediction, ground_truth, metric="mae"):
     """
     if metric == "mae":
         print(f"  - (Pillar 6) Evaluating prediction using '{metric}'.")
-        pred_np = prediction.cpu().numpy()
-        gt_np = ground_truth.cpu().numpy()
+        # Flatten to 2D: (batch, -1)
+        pred_np = prediction.cpu().numpy().reshape(prediction.shape[0], -1)
+        gt_np = ground_truth.cpu().numpy().reshape(ground_truth.shape[0], -1)
         score = mean_absolute_error(gt_np, pred_np)
         return score
     else:

@@ -19,14 +19,14 @@ def run_all_tests(model):
     results = {}
     for test_id, description in test_descriptions.items():
         print(f"--- Running Pillar 2 Test #{test_id}: {description} ---")
-        data, _ = load_data(test_id)
+        data, ground_truth = load_data(test_id)
         device = next(model.parameters()).device
         data = data.to(device)
 
         prediction = model.predict(data, pillar_id=2)
-        score = evaluate(prediction)
+        score = evaluate(prediction, ground_truth)
         results[test_id] = score
-        print(f"  - Score: {score:.2f}%")
+        print(f"  - Real Accuracy: {score:.2f}%")
         print(f"--- Test #{test_id} Complete ---")
         
     valid_scores = [s for s in results.values() if s is not None]
@@ -34,7 +34,7 @@ def run_all_tests(model):
     results['average_accuracy'] = avg_score
     
     print("-" * 45)
-    print(f"Pillar 2 Average Score: {avg_score:.2f}%")
+    print(f"Pillar 2 Average Accuracy: {avg_score:.2f}%")
     print("-" * 45)
     
     return results

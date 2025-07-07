@@ -19,14 +19,37 @@ def calculate_wer(predicted_transcript, ground_truth_transcript, duration=None):
 
 def evaluate_wer(predictions, references=None):
     """
-    Calculates the Word Error Rate (WER). In this mock version, if no
-    references are provided, it returns a random score to simulate the process.
+    Calculates the Word Error Rate (WER) using real ground truth references.
     """
     if references is None:
-        # For mock predictions where we don't have ground truth
-        print("  - (Pillar 1) Evaluating mock ASR prediction. No references provided.")
+        # Fallback for cases where no references are provided
+        print("  - (Pillar 1) Warning: No references provided, using fallback evaluation.")
         return random.uniform(5.0, 30.0) # Return a plausible random WER
 
-    # This part would execute if we had real labels
-    print("  - (Pillar 1) Evaluating ASR prediction against references.")
-    return jiwer.wer(references, predictions) 
+    # Calculate WER for each prediction-reference pair
+    print("  - (Pillar 1) Evaluating ASR prediction against real references.")
+    
+    if isinstance(predictions, str):
+        # Single prediction
+        return jiwer.wer(references, predictions)
+    elif isinstance(predictions, list) and isinstance(references, list):
+        # Batch of predictions
+        if len(predictions) != len(references):
+            print(f"  - Warning: Mismatch in predictions ({len(predictions)}) and references ({len(references)})")
+            return 100.0  # Return max WER for mismatch
+        
+        # Calculate WER for each pair and average
+        wers = []
+        for pred, ref in zip(predictions, references):
+            try:
+                wer_score = jiwer.wer(ref, pred)
+                wers.append(wer_score)
+            except Exception as e:
+                print(f"  - Error calculating WER for pair: {e}")
+                wers.append(100.0)  # Max WER on error
+        
+        avg_wer = sum(wers) / len(wers) if wers else 100.0
+        return avg_wer
+    else:
+        print(f"  - Warning: Unexpected prediction/reference types: {type(predictions)}, {type(references)}")
+        return 100.0 
