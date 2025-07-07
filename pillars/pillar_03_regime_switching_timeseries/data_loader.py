@@ -2,7 +2,7 @@ import torch
 import os
 import random
 from pathlib import Path
-from utils.dev import get_device
+from utils.dev import get_device, to_device
 
 def load_data(test_id, batch_size=4):
     """
@@ -23,16 +23,16 @@ def load_data(test_id, batch_size=4):
     # Randomly sample batch_size files
     selected_files = random.sample(data_files, min(batch_size, len(data_files)))
     
-    # Load time series data and labels
+    # Load time series tensors and labels
     data_batch = []
     label_batch = []
     
     for data_file in selected_files:
-        # Load time series tensor with weights_only=True to suppress warnings
-        time_series_tensor = torch.load(data_file, weights_only=True)
-        # Ensure tensor is on CPU initially
-        time_series_tensor = time_series_tensor.cpu()
-        data_batch.append(time_series_tensor)
+        # Load data tensor with weights_only=True to suppress warnings
+        data_tensor = torch.load(data_file, weights_only=True)
+        # Move to device immediately
+        data_tensor = to_device(data_tensor)
+        data_batch.append(data_tensor)
         
         # Load corresponding label
         label_file = labels_dir / f"{data_file.stem}.pt"
@@ -40,31 +40,29 @@ def load_data(test_id, batch_size=4):
             raise FileNotFoundError(f"Label file {label_file} not found for data file {data_file}")
         
         label_tensor = torch.load(label_file, weights_only=True)
-        # Ensure tensor is on CPU initially
-        label_tensor = label_tensor.cpu()
+        # Move to device immediately
+        label_tensor = to_device(label_tensor)
         label_batch.append(label_tensor)
     
     # Stack tensors into batches
-    # Handle variable lengths by padding or truncating
-    max_length = max(tensor.shape[-1] for tensor in data_batch)
-    padded_data = []
-    
-    for tensor in data_batch:
-        if tensor.shape[-1] < max_length:
-            # Pad with zeros
-            padded = torch.zeros(tensor.shape[:-1] + (max_length,))
-            padded[..., :tensor.shape[-1]] = tensor
-            padded_data.append(padded)
-        else:
-            padded_data.append(tensor)
-    
-    data = torch.stack(padded_data)
+    data = torch.stack(data_batch)
     labels = torch.stack(label_batch).squeeze()  # Remove extra dimension if present
     
+    # Normalize each time series to handle scaling issues
+    # Compute mean and std for each sample in the batch
+    data_mean = data.mean(dim=-1, keepdim=True)
+    data_std = data.std(dim=-1, keepdim=True)
+    # Avoid division by zero
+    data_std = torch.clamp(data_std, min=1e-8)
+    # Normalize data
+    data = (data - data_mean) / data_std
+    
+    # Normalize labels using the same statistics
+    labels = (labels - data_mean.squeeze(-1)) / data_std.squeeze(-1)
+    
     # Move to the correct device
-    device = get_device()
-    data = data.to(device)
-    labels = labels.to(device)
+    data = to_device(data)
+    labels = to_device(labels)
     
     print(f"  - Loaded real time series batch. Shape: {data.shape}")
     print(f"  - Labels shape: {labels.shape}")

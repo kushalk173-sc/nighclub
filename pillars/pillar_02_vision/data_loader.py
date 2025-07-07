@@ -2,7 +2,7 @@ import torch
 import os
 import random
 from pathlib import Path
-from utils.dev import get_device
+from utils.dev import get_device, to_device
 
 def load_data(test_id, batch_size=4):
     """
@@ -12,16 +12,16 @@ def load_data(test_id, batch_size=4):
     print(f"  - (Pillar 2) Loading real image data for test {test_id}.")
     
     # Paths to processed data
-    images_dir = Path("data/pillar_2_processed/images")
+    data_dir = Path("data/pillar_2_processed/images")
     labels_dir = Path("data/pillar_2_processed/labels")
     
-    # Get all available image files
-    image_files = list(images_dir.glob("*.pt"))
-    if not image_files:
-        raise FileNotFoundError(f"No image files found in {images_dir}")
+    # Get all available data files
+    data_files = list(data_dir.glob("*.pt"))
+    if not data_files:
+        raise FileNotFoundError(f"No image data files found in {data_dir}")
     
     # Randomly sample batch_size files
-    selected_files = random.sample(image_files, min(batch_size, len(image_files)))
+    selected_files = random.sample(data_files, min(batch_size, len(data_files)))
     
     # Load image tensors and labels
     image_batch = []
@@ -49,9 +49,8 @@ def load_data(test_id, batch_size=4):
     labels = torch.stack(label_batch).squeeze()  # Remove extra dimension if present
     
     # Move to the correct device
-    device = get_device()
-    images = images.to(device)
-    labels = labels.to(device)
+    images = to_device(images)
+    labels = to_device(labels)
     
     print(f"  - Loaded real image batch. Shape: {images.shape}")
     print(f"  - Labels shape: {labels.shape}")

@@ -1,7 +1,9 @@
-import numpy as np
+import torch
+import os
 import random
 import pickle
 from pathlib import Path
+from utils.dev import get_device, to_device
 
 def load_data(test_id, batch_size=4):
     """
@@ -80,8 +82,11 @@ def load_data(test_id, batch_size=4):
             dialogue_texts.append(str(dialogue))
             labels.append(1)
     
-    # Convert labels to numpy array
-    ground_truth_labels = np.array(labels)
+    # Convert labels to tensor
+    ground_truth_labels = torch.tensor(labels, dtype=torch.long)
+    
+    # Move to the correct device
+    ground_truth_labels = to_device(ground_truth_labels)
     
     print(f"  - Loaded real dialogue batch. Size: {len(dialogue_texts)}")
     print(f"  - Sample dialogue: '{dialogue_texts[0][:100]}...'")
