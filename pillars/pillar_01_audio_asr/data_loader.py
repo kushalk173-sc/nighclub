@@ -27,8 +27,10 @@ def load_data(test_id, batch_size=4):
     text_batch = []
     
     for audio_file in selected_files:
-        # Load audio tensor
-        audio_tensor = torch.load(audio_file)
+        # Load audio tensor with weights_only=True to suppress warnings
+        audio_tensor = torch.load(audio_file, weights_only=True)
+        # Ensure tensor is on CPU
+        audio_tensor = audio_tensor.cpu()
         audio_batch.append(audio_tensor)
         
         # Load corresponding text

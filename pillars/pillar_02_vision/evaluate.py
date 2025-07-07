@@ -29,6 +29,10 @@ def evaluate(prediction, ground_truth=None):
         if not isinstance(ground_truth, torch.Tensor):
             ground_truth = torch.tensor(ground_truth)
         
+        # Ensure both tensors are on the same device
+        if predicted_labels.device != ground_truth.device:
+            ground_truth = ground_truth.to(predicted_labels.device)
+        
         # Calculate accuracy
         correct = (predicted_labels == ground_truth).sum().item()
         total = len(ground_truth)

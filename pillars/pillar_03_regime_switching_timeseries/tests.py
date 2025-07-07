@@ -59,8 +59,7 @@ def run_all_tests(model):
         test_id = (pillar_id - 1) * 10 + 1 + i
         print(f"--- Running Pillar {pillar_id} Test #{test_id}: {pillar_name} Test #{i+1} ---")
         data, ground_truth = load_data(test_id)
-        device = next(model.parameters()).device
-        data = data.to(device)
+        # Do not move data to device here; model will handle it
 
         prediction = model.predict(data, pillar_id=pillar_id)
         score = evaluate(prediction, ground_truth, metric=metric_name)
@@ -88,4 +87,7 @@ def run_all_tests(model):
     return results
 
 if __name__ == '__main__':
-    run_pillar_3_tests()
+    # This would require loading the model to test standalone
+    # from architecture.fluid_network import FluidNetwork
+    # model = FluidNetwork()
+    run_all_tests()

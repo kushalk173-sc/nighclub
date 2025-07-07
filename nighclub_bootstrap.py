@@ -35,6 +35,7 @@ sys.path.append(str(repo_root))
 
 print(f"--- Bootstrap: Added {repo_root} to PYTHONPATH.")
 
+print(f"--- Bootstrap: sys.argv = {sys.argv}")
 # Get the target script to run (e.g., 'main.py') and its arguments.
 if len(sys.argv) < 2:
     print("Bootstrap Error: Please specify a script to run after the bootstrap.", file=sys.stderr)
@@ -43,18 +44,21 @@ if len(sys.argv) < 2:
 
 target_script_path = sys.argv[1]
 arguments = sys.argv[2:]
-
+print(f"--- Bootstrap: target_script_path = {target_script_path}")
+print(f"--- Bootstrap: arguments = {arguments}")
 # Construct the full command to execute.
 command = [sys.executable, target_script_path] + arguments
-
-print(f"--- Bootstrap: Executing command: {' '.join(command)}")
-print("-" * 50)
-
+print(f"--- Bootstrap: Full command: {' '.join(command)}")
+print(f"--- Bootstrap: About to run subprocess...")
 # Run the target script as a subprocess.
 try:
-    subprocess.run(command, check=True)
+    result = subprocess.run(command, check=True, capture_output=True, text=True, encoding='utf-8', errors='replace')
+    print(f"--- Bootstrap: Subprocess stdout ---\n{result.stdout}")
+    print(f"--- Bootstrap: Subprocess stderr ---\n{result.stderr}")
 except subprocess.CalledProcessError as e:
     print(f"\n--- Bootstrap: Target script '{target_script_path}' exited with error (Code: {e.returncode}).", file=sys.stderr)
+    print(f"--- Bootstrap: STDOUT ---\n{e.stdout}", file=sys.stderr)
+    print(f"--- Bootstrap: STDERR ---\n{e.stderr}", file=sys.stderr)
     sys.exit(e.returncode)
 except FileNotFoundError:
     print(f"\n--- Bootstrap: Target script '{target_script_path}' not found.", file=sys.stderr)

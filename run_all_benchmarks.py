@@ -30,7 +30,7 @@ def run_all_benchmarks():
     all_results = {}
 
     for model_version in ALL_MODELS:
-        print(f"\\n--- Benchmarking Model: {model_version} ---")
+        print(f"\n--- Benchmarking Model: {model_version} ---")
         
         command = [
             sys.executable,
@@ -38,52 +38,69 @@ def run_all_benchmarks():
             "main.py",
             "--model_version", model_version,
             "--seed", str(seed),
-            "--json_output"
+            "--json_output",
+            "--smoke"
         ]
         
         try:
-            result = subprocess.run(command, capture_output=True, text=True, check=True)
+            result = subprocess.run(command, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+            if result.stdout is None:
+                print(f"stdout is None for {model_version}")
+                print(f"stderr: {result.stderr}")
+                raise Exception("Subprocess stdout is None - likely encoding error")
             
             # Find the JSON output block
             json_output = None
-            for line in result.stdout.splitlines():
+            lines = result.stdout.splitlines()
+            for i, line in enumerate(lines):
                 if line.strip().startswith('{'):
-                    json_output = line
+                    # Found the start of JSON, collect all lines until we find a complete JSON
+                    json_lines = []
+                    brace_count = 0
+                    for j in range(i, len(lines)):
+                        json_lines.append(lines[j])
+                        brace_count += lines[j].count('{') - lines[j].count('}')
+                        if brace_count == 0:
+                            # We've found a complete JSON object
+                            json_output = '\n'.join(json_lines)
+                            break
                     break
             
-            if not json_output:
-                print(f"ERROR: Could not find JSON output for model '{model_version}'. Skipping.", file=sys.stderr)
-                continue
-
-            run_results = json.loads(json_output)
-            model_scores = {}
-            for pillar_id, pillar_data in run_results.items():
-                pillar_id = int(pillar_id)
-                avg_key = next((key for key in pillar_data if key.startswith('average_')), None)
-                if avg_key:
-                    model_scores[pillar_id] = pillar_data[avg_key]
-            all_results[model_version] = model_scores
-            print(f"--- Finished Benchmarking {model_version} ---")
-
-        except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
-            print(f"!!! ERROR during benchmark for model '{model_version}' !!!", file=sys.stderr)
-            if isinstance(e, subprocess.CalledProcessError):
-                print("--- STDOUT ---", file=sys.stderr)
-                print(e.stdout, file=sys.stderr)
-                print("--- STDERR ---", file=sys.stderr)
-                print(e.stderr, file=sys.stderr)
+            if json_output:
+                try:
+                    parsed_results = json.loads(json_output)
+                    all_results[model_version] = parsed_results
+                    print(f"✓ Successfully parsed JSON for {model_version}")
+                except json.JSONDecodeError as e:
+                    print(f"!!! ERROR during benchmark for model '{model_version}' !!!")
+                    print(f"JSON Decode Error: {e}")
+                    print(f"Exception details: {e} ")
+                    all_results[model_version] = {"error": f"JSON decode failed: {str(e)}"}
             else:
-                print(f"JSON Decode Error: {e}", file=sys.stderr)
-            # Record failure
-            all_results[model_version] = {p: "FAIL" for p in range(1, 12)}
-            
+                print(f"!!! ERROR during benchmark for model '{model_version}' !!!")
+                print("No JSON output found in stdout")
+                print(f"STDOUT: {result.stdout}")
+                print(f"STDERR: {result.stderr}")
+                all_results[model_version] = {"error": "No JSON output found"}
+                
+        except subprocess.CalledProcessError as e:
+            print(f"!!! ERROR during benchmark for model '{model_version}' !!!")
+            print(f"Subprocess failed with return code {e.returncode}")
+            print(f"STDOUT: {e.stdout}")
+            print(f"STDERR: {e.stderr}")
+            all_results[model_version] = {"error": f"Subprocess failed: {str(e)}"}
+        except Exception as e:
+            print(f"!!! ERROR during benchmark for model '{model_version}' !!!")
+            print(f"Unexpected error: {e}")
+            all_results[model_version] = {"error": f"Unexpected error: {str(e)}"}
+
     print_results_table(all_results)
 
 def print_results_table(results):
     """
     Prints a formatted markdown table of the benchmark results.
     """
-    print("\\n" + "="*70)
+    print("\n" + "="*70)
     print("                 FULL BENCHMARK RESULTS                 ")
     print("="*70)
 
@@ -91,8 +108,16 @@ def print_results_table(results):
     df = pd.DataFrame.from_dict(results, orient='index')
     df = df.reindex(sorted(df.columns), axis=1) # Sort columns by pillar number
 
-    # Format header
-    header = [f"Pillar {i} ({PILLAR_METRICS[i]})" for i in df.columns]
+    # Format header - handle both string and integer keys
+    header = []
+    for col in df.columns:
+        try:
+            pillar_num = int(col)
+            metric = PILLAR_METRICS.get(pillar_num, "Unknown")
+            header.append(f"Pillar {pillar_num} ({metric})")
+        except ValueError:
+            # If it's not a number, use it as is
+            header.append(col)
     df.columns = header
     
     # Format floating point numbers
@@ -105,7 +130,7 @@ def print_results_table(results):
     # Print the table in markdown format
     print(df.to_markdown())
     
-    print("\\n" + "="*70)
+    print("\n" + "="*70)
     print("Lower is better for WER/MAE. Higher is better for Acc/F1.")
     print("="*70)
 

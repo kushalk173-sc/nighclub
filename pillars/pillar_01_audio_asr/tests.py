@@ -32,9 +32,11 @@ def run_test(model, test_id):
 
     print("Getting model prediction...")
     try:
-        # Move data to the same device as the model
-        device = next(model.parameters()).device
-        data = data.to(device)
+        # Do not move data to device here; model will handle it
+        
+        # Fix input shape for wav2vec2: expects [batch, time] not [batch, channels, time]
+        if data.dim() == 3 and data.shape[1] == 1:
+            data = data.squeeze(1)  # Remove channel dimension: [B, 1, T] -> [B, T]
         
         # The model's transcribe method handles the forward pass
         prediction = model.transcribe(data)

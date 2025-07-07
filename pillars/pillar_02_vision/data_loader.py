@@ -27,14 +27,18 @@ def load_data(test_id, batch_size=4):
     label_batch = []
     
     for image_file in selected_files:
-        # Load image tensor
-        image_tensor = torch.load(image_file)
+        # Load image tensor with weights_only=True to suppress warnings
+        image_tensor = torch.load(image_file, weights_only=True)
+        # Ensure tensor is on CPU
+        image_tensor = image_tensor.cpu()
         image_batch.append(image_tensor)
         
         # Load corresponding label
         label_file = labels_dir / f"{image_file.stem}.pt"
         if label_file.exists():
-            label_tensor = torch.load(label_file)
+            label_tensor = torch.load(label_file, weights_only=True)
+            # Ensure tensor is on CPU
+            label_tensor = label_tensor.cpu()
             label_batch.append(label_tensor)
         else:
             # Fallback random label if missing

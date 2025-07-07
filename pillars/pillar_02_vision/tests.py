@@ -20,8 +20,7 @@ def run_all_tests(model):
     for test_id, description in test_descriptions.items():
         print(f"--- Running Pillar 2 Test #{test_id}: {description} ---")
         data, ground_truth = load_data(test_id)
-        device = next(model.parameters()).device
-        data = data.to(device)
+        # Do not move data to device here; model will handle it
 
         prediction = model.predict(data, pillar_id=2)
         score = evaluate(prediction, ground_truth)

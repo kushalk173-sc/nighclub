@@ -27,14 +27,18 @@ def load_data(test_id, batch_size=4):
     label_batch = []
     
     for data_file in selected_files:
-        # Load time series tensor
-        time_series_tensor = torch.load(data_file)
+        # Load time series tensor with weights_only=True to suppress warnings
+        time_series_tensor = torch.load(data_file, weights_only=True)
+        # Ensure tensor is on CPU
+        time_series_tensor = time_series_tensor.cpu()
         data_batch.append(time_series_tensor)
         
         # Load corresponding label
         label_file = labels_dir / f"{data_file.stem}.pt"
         if label_file.exists():
-            label_tensor = torch.load(label_file)
+            label_tensor = torch.load(label_file, weights_only=True)
+            # Ensure tensor is on CPU
+            label_tensor = label_tensor.cpu()
             label_batch.append(label_tensor)
         else:
             # Fallback random label if missing

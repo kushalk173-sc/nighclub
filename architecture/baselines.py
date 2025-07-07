@@ -42,12 +42,17 @@ class BaselineHostNetwork(nn.Module):
         print("Baseline Host initialized successfully.")
 
     def forward(self, data, pillar_id):
+        # Ensure data is on the same device as the model
+        device = next(self.parameters()).device
+        if isinstance(data, torch.Tensor):
+            data = data.to(device)
+        
         # --- Step 1 & 2: Encode input and project to a sequence of d_model ---
         if pillar_id == 1: # Audio
             # wav2vec2 output is already a sequence: [B, T, 768]
             encoded_sequence = self.audio_encoder(data).last_hidden_state
             projected_sequence = self.audio_seq_projector(encoded_sequence)
-        elif pillar_id == 2: # Vision
+        elif pillar_id in [2, 8, 10]: # Vision (pillar 2, 8, 10 are all vision tasks)
             # ViT output is a sequence of patch embeddings: [B, T, 192]
             encoded_sequence = self.vision_encoder.forward_features(data)
             projected_sequence = self.vision_seq_projector(encoded_sequence)
@@ -55,7 +60,7 @@ class BaselineHostNetwork(nn.Module):
             # Transformer output is a sequence: [B, T, 768]
             encoded_sequence = self.text_encoder(**data).last_hidden_state
             projected_sequence = self.text_seq_projector(encoded_sequence)
-        else: # Generic numerical data
+        else: # Generic numerical data (pillars 3, 6, 7, 9, 11)
             # Unsqueeze to make it a sequence of length 1: [B, 1, 10]
             if data.dim() == 2:
                 data = data.unsqueeze(1)
@@ -70,11 +75,11 @@ class BaselineHostNetwork(nn.Module):
 
         if pillar_id == 1:
             return self.asr_head(pooled_output)
-        elif pillar_id == 2:
+        elif pillar_id in [2, 8, 10]: # Vision tasks
             return self.vision_head(pooled_output)
-        elif pillar_id in [4, 5]:
+        elif pillar_id in [4, 5]: # Text tasks
             return self.text_head(pooled_output)
-        else:
+        else: # Regression tasks
             return self.regression_head(pooled_output)
             
     def transcribe(self, audio_batch):

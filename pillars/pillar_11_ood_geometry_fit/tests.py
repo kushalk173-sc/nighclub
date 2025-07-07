@@ -19,8 +19,17 @@ def run_all_tests(model):
         test_id = (pillar_id - 1) * 10 + 1 + i
         print(f"--- Running Pillar {pillar_id} Test #{test_id}: {pillar_name} Test #{i+1} ---")
         data, ground_truth = load_data(test_id)
-        device = next(model.parameters()).device
-        data = data.to(device)
+        # Reshape data to match baseline model's expected input shape [B, 10]
+        if data.dim() == 3:  # [B, N, 3] -> [B, N*3]
+            data = data.view(data.shape[0], -1)
+        if data.shape[1] != 10:  # If not 10 features, pad or truncate
+            if data.shape[1] > 10:
+                data = data[:, :10]  # Truncate to 10 features
+            else:
+                # Pad with zeros to 10 features
+                padding = torch.zeros(data.shape[0], 10 - data.shape[1])
+                data = torch.cat([data, padding], dim=1)
+        # Do not move data to device here; model will handle it
 
         prediction = model.predict(data, pillar_id=pillar_id)
         score = evaluate(prediction, ground_truth, metric=metric_name)
@@ -46,3 +55,9 @@ def run_all_tests(model):
     print("-" * 45)
     
     return results
+
+if __name__ == '__main__':
+    # This would require loading the model to test standalone
+    # from architecture.fluid_network import FluidNetwork
+    # model = FluidNetwork()
+    run_all_tests()

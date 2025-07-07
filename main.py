@@ -124,8 +124,12 @@ def run_pillar_tests(model, pillars_to_run):
 
         except ImportError as e:
             print(f"Could not import or run tests for Pillar {pillar_id}. Error: {e}", file=sys.stderr)
+            # Return a default result structure for failed pillars
+            all_results[pillar_id] = {"error": f"Import failed: {str(e)}"}
         except Exception as e:
             print(f"!!!!! An error occurred while running Pillar {pillar_id}: {e} !!!!!", file=sys.stderr)
+            # Return a default result structure for failed pillars
+            all_results[pillar_id] = {"error": f"Runtime error: {str(e)}"}
             
     return all_results
 
@@ -163,24 +167,47 @@ def main():
         help="Output final results as a JSON string."
     )
     args = parser.parse_args()
-    
+    print(f"[DEBUG] Parsed args: {args}")
     set_seed(args.seed)
 
     if args.smoke:
         print("--- Smoke test mode: Will run minimal checks and exit. ---")
-        pillars_to_run = [1]
+        pillars_to_run = [1, 2]  # Only run first 2 pillars for quick test
     else:
         pillars_to_run = args.pillar if args.pillar else range(1, 12)
+    print(f"[DEBUG] Pillars to run: {pillars_to_run}")
+    print(f"[DEBUG] Model version: {args.model_version}")
 
     print("--- Setting up the model ---")
-    model = get_model(args.model_version)
-    print("--- Model setup complete ---")
+    try:
+        model = get_model(args.model_version)
+        print("--- Model setup complete ---")
+    except Exception as e:
+        print(f"Error setting up model: {e}", file=sys.stderr)
+        if args.json_output:
+            error_result = {pillar_id: {"error": f"Model setup failed: {str(e)}"} for pillar_id in pillars_to_run}
+            print(f"[DEBUG] Error result JSON: {error_result}")
+            print(json.dumps(error_result, indent=2))
+            sys.stdout.flush()
+            os._exit(0)  # Exit immediately without cleanup
+        return
 
     final_results = run_pillar_tests(model, pillars_to_run)
-    
+    print(f"[DEBUG] Final results: {final_results}")
     if args.json_output:
-        # Suppress printing the human-readable summary
-        print(json.dumps(final_results, indent=2))
+        # Ensure the output is valid JSON by handling any non-serializable objects
+        def clean_for_json(obj):
+            if isinstance(obj, dict):
+                return {str(k): clean_for_json(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [clean_for_json(item) for item in obj]
+            elif isinstance(obj, (int, float, str, bool, type(None))):
+                return obj
+            else:
+                return str(obj)
+        cleaned = clean_for_json(final_results)
+        print(json.dumps(cleaned, indent=2))
+        os._exit(0)  # Exit immediately without any cleanup
     else:
         # Existing pretty-printing logic would go here, for now just print dict
         print("\n--- Test Run Complete ---")

@@ -1,18 +1,24 @@
 import torch
-import numpy as np
+import os
 import random
 from pathlib import Path
 
 def load_data(test_id, batch_size=4):
     """
-    Loads real vision data and applies degradation for testing graceful degradation.
-    Uses existing vision data from data/pillar_2_processed/.
+    Loads real image data and corresponding labels from processed data.
+    Uses the processed data from data/pillar_8_processed/ or falls back to pillar_2_processed/.
     """
-    print(f"  - (Pillar 8) Loading real vision data with degradation for test {test_id}.")
+    print(f"  - (Pillar 8) Loading real image data for test {test_id}.")
     
-    # Paths to processed vision data
-    images_dir = Path("data/pillar_2_processed/images")
-    labels_dir = Path("data/pillar_2_processed/labels")
+    # Try pillar 8 data first
+    images_dir = Path("data/pillar_8_processed/images")
+    labels_dir = Path("data/pillar_8_processed/labels")
+    
+    # If pillar 8 data doesn't exist, fall back to pillar 2 data
+    if not images_dir.exists():
+        print(f"  - Pillar 8 data not found, using pillar 2 data as fallback.")
+        images_dir = Path("data/pillar_2_processed/images")
+        labels_dir = Path("data/pillar_2_processed/labels")
     
     # Get all available image files
     image_files = list(images_dir.glob("*.pt"))
@@ -27,14 +33,18 @@ def load_data(test_id, batch_size=4):
     label_batch = []
     
     for image_file in selected_files:
-        # Load image tensor
-        image_tensor = torch.load(image_file)
+        # Load image tensor with weights_only=True to suppress warnings
+        image_tensor = torch.load(image_file, weights_only=True)
+        # Ensure tensor is on CPU
+        image_tensor = image_tensor.cpu()
         image_batch.append(image_tensor)
         
         # Load corresponding label
         label_file = labels_dir / f"{image_file.stem}.pt"
         if label_file.exists():
-            label_tensor = torch.load(label_file)
+            label_tensor = torch.load(label_file, weights_only=True)
+            # Ensure tensor is on CPU
+            label_tensor = label_tensor.cpu()
             label_batch.append(label_tensor)
         else:
             # Fallback random label if missing
@@ -44,13 +54,10 @@ def load_data(test_id, batch_size=4):
     images = torch.stack(image_batch)
     labels = torch.stack(label_batch).squeeze()  # Remove extra dimension if present
     
-    # Apply degradation based on test_id
-    degraded_images = apply_degradation(images, test_id)
-    
-    print(f"  - Loaded real vision batch with degradation. Shape: {degraded_images.shape}")
+    print(f"  - Loaded real image batch. Shape: {images.shape}")
     print(f"  - Labels shape: {labels.shape}")
     
-    return degraded_images, labels
+    return images, labels
 
 def apply_degradation(images, test_id):
     """

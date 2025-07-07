@@ -1,5 +1,6 @@
 import random
 import numpy as np
+import torch
 
 def evaluate(prediction, ground_truth=None):
     """
@@ -13,7 +14,9 @@ def evaluate(prediction, ground_truth=None):
     
     try:
         # Handle different prediction formats
-        if isinstance(prediction, np.ndarray):
+        if isinstance(prediction, torch.Tensor):
+            predicted_labels = prediction.cpu().numpy()
+        elif isinstance(prediction, np.ndarray):
             predicted_labels = prediction
         elif isinstance(prediction, list):
             predicted_labels = np.array(prediction)
@@ -25,7 +28,9 @@ def evaluate(prediction, ground_truth=None):
             return 0.0
         
         # Ensure ground truth is numpy array
-        if not isinstance(ground_truth, np.ndarray):
+        if isinstance(ground_truth, torch.Tensor):
+            ground_truth = ground_truth.cpu().numpy()
+        elif not isinstance(ground_truth, np.ndarray):
             ground_truth = np.array(ground_truth)
         
         # Calculate accuracy for binary classification
