@@ -1,1 +1,94 @@
- 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyTorch
+*.pth
+*.pt
+*.pkl
+
+# Data files
+*.tar.gz
+*.zip
+*.npy
+*.npz
+*.h5
+*.hdf5
+*.csv
+*.jsonl
+
+# Large datasets and processed data
+data/cifar-10-batches-py/
+data/cifar-10-python.tar.gz
+data/LibriSpeech/
+data/pillar_01/
+data/pillar_1_processed/
+data/pillar_2_processed/
+data/pillar_3_processed/
+data/pillar_4_processed/
+data/pillar_5_processed/
+data/pillar_6_processed/
+data/pillar_7_processed/
+data/pillar_8_processed/
+data/pillar_9_processed/
+data/pillar_10_processed/
+data/pillar_11_processed/
+data/test-clean.tar.gz
+
+# Model files
+*.pth
+RWKV-4-Pile-169M-20220807-8023.pth
+20B_tokenizer.json
+
+# Results and outputs
+results/
+temp_analogies/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp 
