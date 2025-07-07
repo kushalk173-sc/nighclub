@@ -35,14 +35,13 @@ def load_data(test_id, batch_size=4):
         
         # Load corresponding label
         label_file = labels_dir / f"{data_file.stem}.pt"
-        if label_file.exists():
-            label_tensor = torch.load(label_file, weights_only=True)
-            # Ensure tensor is on CPU
-            label_tensor = label_tensor.cpu()
-            label_batch.append(label_tensor)
-        else:
-            # Fallback random label if missing
-            label_batch.append(torch.randn(1))
+        if not label_file.exists():
+            raise FileNotFoundError(f"Label file {label_file} not found for data file {data_file}")
+        
+        label_tensor = torch.load(label_file, weights_only=True)
+        # Ensure tensor is on CPU
+        label_tensor = label_tensor.cpu()
+        label_batch.append(label_tensor)
     
     # Stack tensors into batches
     # Handle variable lengths by padding or truncating

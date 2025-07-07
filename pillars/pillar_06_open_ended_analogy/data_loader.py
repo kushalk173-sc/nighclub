@@ -43,15 +43,13 @@ def load_data(test_id, batch_size=4):
             input_patterns.append(analogy['pattern'])
             output_patterns.append(analogy['solution'])
         else:
-            # Fallback: use the first two keys as input/output
+            # Use the first two keys as input/output
             keys = list(analogy.keys())
             if len(keys) >= 2:
                 input_patterns.append(analogy[keys[0]])
                 output_patterns.append(analogy[keys[1]])
             else:
-                # Create dummy data if structure is unclear
-                input_patterns.append(torch.randn(5, 5))
-                output_patterns.append(torch.randn(5, 5))
+                raise ValueError(f"Invalid analogy data structure: {analogy}")
     
     # Convert to tensors if they aren't already
     # This is a simplified conversion - adjust based on actual data format
@@ -66,10 +64,7 @@ def load_data(test_id, batch_size=4):
         else:
             output_data = torch.stack(output_patterns) if isinstance(output_patterns[0], torch.Tensor) else torch.tensor(output_patterns)
     except Exception as e:
-        print(f"  - Warning: Error converting analogy data to tensors: {e}")
-        # Fallback to random tensors
-        input_data = torch.randn(len(selected_analogies), 5, 5)
-        output_data = torch.randn(len(selected_analogies), 5, 5)
+        raise ValueError(f"Error converting analogy data to tensors: {e}")
     
     print(f"  - Loaded real analogy batch. Input shape: {input_data.shape}")
     print(f"  - Output shape: {output_data.shape}")

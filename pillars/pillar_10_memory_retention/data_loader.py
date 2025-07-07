@@ -33,10 +33,7 @@ def load_data(test_id, batch_size=4):
         labels = np.array(labels)
         
     except Exception as e:
-        print(f"  - Warning: Error loading CIFAR-10 data: {e}")
-        # Fallback to random data
-        images = np.random.rand(1000, 3, 32, 32).astype(np.float32)
-        labels = np.random.randint(0, 10, 1000)
+        raise ValueError(f"Error loading CIFAR-10 data: {e}")
     
     # Create task splits for continual learning
     # Each task contains 2 classes
@@ -50,9 +47,7 @@ def load_data(test_id, batch_size=4):
     task_labels = labels[task_mask]
     
     if len(task_images) == 0:
-        # Fallback if no data for this task
-        task_images = np.random.rand(batch_size, 3, 32, 32).astype(np.float32)
-        task_labels = np.random.randint(class_start, class_end, batch_size)
+        raise ValueError(f"No CIFAR-10 data found for task {task_id} (classes {class_start}-{class_end-1})")
     
     # Randomly sample batch_size samples
     n_samples = len(task_images)
